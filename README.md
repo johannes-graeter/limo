@@ -1,3 +1,6 @@
+# Note
+THis is work in progress, detailed install instructions and examples will follow. 
+
 # Keyframe bundle adjustment
 
 * This is a library for doing bundle adjustment with visual sensors
@@ -10,7 +13,6 @@
   * Difference in motion
 
 * We use this library for combining Lidar with monocular vision.
-* Detailed install instructions and examples will follow. 
 
 ## Installation
 
@@ -80,42 +82,6 @@ auto summary = bundle_adjuster.solve();
 
 ## Issues
 
-### General
-
-* [ ] optimizer too slow, (1.5 sec with 10 keyframes)
-  * [X] jacobian eval takes long -> yes
-    * [X] why? -> many evaluations with autodiff
-    * [ ] use analytic diff?
-  * [X] how many LMs do i need so that I am real time capable?
-    * since I only do it on keyframes, 500ms is ok -> 500 parameter blocks(450 landmarks, 50 keyframes),  1700(1600) (effective) parameters.
-    * results are on dell laptop with autodiff and 5 point as prior
-  * [X] try different optimizer
-    * DENSE_SCHUR seems to be the one according to ceres docu
-    * Tiny solver could be more effective but is still experimental
-  * [ ] tune params
-
-* [ ] landmark selection
-  * [ ] categorize landmarks as near middle and far field
-  * [ ] select landmarks with "flow fields"
-
-* [X] throws an error after 20 frames
-
-* [ ] how fast is framework (all but optimization)?
-
-### Lidar
-
-* [ ] Add depth data to framework
-  * [ ] make new class LidarKeyframe: public Keyframe and add depth data associated by landmarks
-  * [ ] overload BundleAdjuster::push with LidarKeyframe
-    * [ ] convert to old Keyframes (cast!)
-    * [ ] call old push to triangulate
-    * [ ] add depth if landmark if it is not in far-field
-    * [ ] @TODO(Johannes) move landmark selection to push
-
-* [ ] adapt unittests
-
-* [ ] write tool in keyframe_bundle_adjustment_ros_tool
-
 ## Notation
 
 ### Transforms and Poses
@@ -139,6 +105,7 @@ p_b = transform_b_c1*transform_c1_c2*transform_c2_a*p_a
 
 * Unittests work
 * Runs on kitti data
+* Evaluation on Kitti leads to 13th rank (March 16 2018)
 
 ## Credits
 
