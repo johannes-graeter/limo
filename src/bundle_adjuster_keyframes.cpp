@@ -24,7 +24,8 @@ namespace keyframe_bundle_adjustment {
 
 namespace {
 Eigen::Matrix<double, 3, 1> convertMeasurementToRay(const Eigen::Matrix3d& intrin_inv, const Measurement& m) {
-    Eigen::Matrix<double, 3, 1> ray = intrin_inv * Eigen::Vector3d(m.u, m.v, 1.);
+    Eigen::Matrix<double, 3, 1> ray =
+        intrin_inv * Eigen::Vector3d(static_cast<double>(m.u), static_cast<double>(m.v), 1.);
     ray.normalize();
     return ray;
 }
@@ -291,9 +292,9 @@ bool BundleAdjusterKeyframes::calculateLandmark(const Keyframe& kf, const Landma
         const auto cam = kf.cameras_.at(m.first);
 
         // calculate landmark position in camera frame
-        const auto z = m.second.d;
-        const auto x = (m.second.u - cam->principal_point.x()) * z / cam->focal_length;
-        const auto y = (m.second.v - cam->principal_point.y()) * z / cam->focal_length;
+        const double z = m.second.d;
+        const double x = (m.second.u - cam->principal_point.x()) * z / cam->focal_length;
+        const double y = (m.second.v - cam->principal_point.y()) * z / cam->focal_length;
 
         // transform landmark position from camera frame into world frame
         posAbs = (cam->getEigenPose() * kf.getEigenPose()).inverse() * v3(x, y, z);
@@ -820,7 +821,9 @@ void BundleAdjusterKeyframes::addScaleRegularization(double weight) {
 }
 
 
-void BundleAdjusterKeyframes::deactivateKeyframes(int min_num_connecting_landmarks) {
+void BundleAdjusterKeyframes::deactivateKeyframes(int min_num_connecting_landmarks,
+                                                  double min_time_sec,
+                                                  double max_time_sec) {
     // that number may not be bigger than the total number of landmarks
     //    min_num_connecting_landmarks =
     //        std::min(min_num_connecting_landmarks, static_cast<int>(active_landmark_ids_.size()));
@@ -829,9 +832,6 @@ void BundleAdjusterKeyframes::deactivateKeyframes(int min_num_connecting_landmar
     // if not belongs to same landmark deactivate keyframe
     const auto& newest_kf = getKeyframe();
 
-    double min_time_sec = 3.0;
-    double max_time_sec = 5.0;
-
     // go through all active keyframes, test connection between them by landmarks and save or erase
     // corresponding data
     for (auto it = active_keyframe_ids_.cbegin(); it != active_keyframe_ids_.cend();
@@ -839,7 +839,7 @@ void BundleAdjusterKeyframes::deactivateKeyframes(int min_num_connecting_landmar
         const auto& kf_id = *it;
         auto& cur_kf = *keyframes_.at(kf_id);
 
-        double dt_sec = convert(std::abs(newest_kf.timestamp_ - cur_kf.timestamp_));
+        double dt_sec = std::abs(convert(newest_kf.timestamp_) - convert(cur_kf.timestamp_));
         if (dt_sec > min_time_sec) {
             // only test connectivity if bigger than minimum optimization window
             // get landmarks that connect the two frames.

@@ -84,14 +84,14 @@ public: // exceptions
     };
 
     struct OutlierRejectionOptions {
-        double depth_thres{0.1};        ///< threshold in meters for cauchy loss used to robustify depth reidual
-        double reprojection_thres{1.0}; ///< threshold in pixel for huber loss used to robustify reprojection error
-        double depth_quantile{
-            0.95}; ///< Quantile for outlier rejection in depth 0.9 means that the 10% highest residuals are rejected each
-                   /// iteration.
-        double reprojection_quantile{
-            0.95}; ///< Quantile for outlier rejection in reprojection 0.9 means that the 10% highest residuals are rejected each
-                   /// iteration.
+        double depth_thres{0.16};       ///< threshold in meters for cauchy loss used to robustify depth reidual
+        double reprojection_thres{1.6}; ///< threshold in pixel for huber loss used to robustify reprojection error
+        double depth_quantile{0.95};    ///< Quantile for outlier rejection in depth 0.9 means that the 10% highest
+                                        /// residuals are rejected each
+        /// iteration.
+        double reprojection_quantile{0.95}; ///< Quantile for outlier rejection in reprojection 0.9 means that the 10%
+                                            /// highest residuals are rejected each
+        /// iteration.
         int num_iterations{1}; ///< Number of iterations for qunatile outlier rejection (==trimmed least squares).
     };
 
@@ -140,8 +140,12 @@ public: // methods
      * and remove cost for landmarks and poses
      * @param min_num_connecting_landmarks, if number of tracklets that connect first to current frame is smaller than
      * this, we set the end of the optimization window
+     * @param min_time_sec, minimum optimization window size in delta time (seconds)
+     * @param max_time_sec, maximum optimization window size in delta time (seconds)
      */
-    void deactivateKeyframes(int min_num_connecting_landmarks = 3);
+    void deactivateKeyframes(int min_num_connecting_landmarks = 3,
+                             double min_time_sec = 3.0,
+                             double max_time_sec = 5.0);
 
     /**
      * @brief getKeyframe, const getter for keyframe at timestamp

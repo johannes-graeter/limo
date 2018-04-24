@@ -30,7 +30,6 @@
   <depend>mrt_ceres</depend>
   <depend>mrt_pcl</depend> <!--For voxelization in landmark selection-->
   <depend>mrt_opencv</depend>
-  <depend>matches_msg_types</depend>
 
   <export>
     <!-- Other tools can request additional information be placed here -->
