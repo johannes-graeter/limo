@@ -6,7 +6,7 @@
 #include <iostream>
 #include <Eigen/Eigen>
 #include <ceres/problem.h>
-#include <matches_msg_types/tracklets.hpp>
+#include <tracklets.hpp>
 
 namespace keyframe_bundle_adjustment {
 
