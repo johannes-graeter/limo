@@ -21,6 +21,9 @@ find_package(AutoDeps REQUIRED COMPONENTS ${DEPENDEND_PACKAGES})
 # Mark files or folders for display in IDEs
 mrt_add_to_ide(README.md .gitlab-ci.yml)
 
+add_definitions(-DEIGEN_DONT_VECTORIZE)
+add_definitions(-DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT)
+
 ########################
 ## add python modules ##
 ########################
