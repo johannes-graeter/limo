@@ -42,12 +42,10 @@ void Keyframe::assignMeasurements(const Tracklets& tracklets, const std::map<Lan
     for (const auto& track : tracklets.tracks) {
         // add tracklets to all cameras from which it is seen
         for (const auto& cam_id : landmark_lookup.at(track.id)) {
-            Tracklets& cur_tracklets = out[cam_id];
-
             // add track to tracklet per cam
-            cur_tracklets.stamps = tracklets.stamps; // this should be always the same since non measured
-                                                     // tracklets are discarded
-            cur_tracklets.tracks.push_back(track);
+            out[cam_id].stamps = tracklets.stamps; // this should be always the same since non measured
+                                                   // tracklets are discarded
+            out[cam_id].tracks.push_back(track);
         }
     }
 

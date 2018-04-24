@@ -759,7 +759,11 @@ TEST(BundleAdjusterKeyframes, deactivateKeyframes) {
         count++;
     }
 
-    std::vector<TimestampNSec> stamps{1, 2, 3, 4, 5};
+    std::vector<TimestampNSec> stamps{convert(TimestampSec(0.1)),
+                                      convert(TimestampSec(0.2)),
+                                      convert(TimestampSec(0.3)),
+                                      convert(TimestampSec(0.4)),
+                                      convert(TimestampSec(0.5))};
     std::map<keyframe_bundle_adjustment::TimestampNSec, Eigen::Isometry3d> poses =
         getPoses(0., std::make_tuple(0., 0., 0.), stamps);
 
@@ -783,48 +787,47 @@ TEST(BundleAdjusterKeyframes, deactivateKeyframes) {
     for (const auto& el : poses) {
         adjuster.push(Keyframe(el.first, ts, cam_ptr, el.second, Keyframe::FixationStatus::None));
     }
-    adjuster.keyframes_.at(1)->fixation_status_ = Keyframe::FixationStatus::Scale;
+    adjuster.keyframes_.at(convert(TimestampSec(0.1)))->fixation_status_ = Keyframe::FixationStatus::Scale;
 
     // do deactivation
-    adjuster.deactivateKeyframes();
+    adjuster.deactivateKeyframes(3, 0.0, 1000.0);
 
     // test result
     std::cout << "testing" << std::endl;
     ASSERT_EQ(adjuster.active_keyframe_ids_.size(), 5);
     ASSERT_EQ(adjuster.active_landmark_ids_.size(), lms_origin.size());
-    ASSERT_EQ(adjuster.keyframes_.at(1)->fixation_status_, Keyframe::FixationStatus::Pose);
-    ASSERT_EQ(adjuster.keyframes_.at(2)->fixation_status_, Keyframe::FixationStatus::Scale);
+    ASSERT_EQ(adjuster.keyframes_.at(convert(TimestampSec(0.1)))->fixation_status_, Keyframe::FixationStatus::Pose);
+    ASSERT_EQ(adjuster.keyframes_.at(convert(TimestampSec(0.2)))->fixation_status_, Keyframe::FixationStatus::Scale);
 }
 
 TEST(KeyFrameBundleAdjustment, solve) {
-    std::cout << "======================== Mono =======================" << std::endl;
-    std::cout << "--------------------------- zero noise ----------------------------" << std::endl;
-    evaluate_bundle_adjustment(
-        std::make_tuple(0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.001, {Eigen::Isometry3d::Identity()});
-
-    std::cout << "--------------------------- noise "
-                 "=0.,0.,5pi/180,0.2,0.1,0.1----------------------------"
-              << std::endl;
-    evaluate_bundle_adjustment(std::make_tuple(0., 0.),
-                               std::make_tuple(5. * M_PI / 180., 0.2, 0.1, 0.1),
-                               0.001,
-                               {Eigen::Isometry3d::Identity()});
-
-    std::cout << "--------------------------- noise "
-                 "=0.1,0.1,5pi/180,0.2,0.1,0.1----------------------------"
-              << std::endl;
-    evaluate_bundle_adjustment(std::make_tuple(1.5, 1.5),
-                               std::make_tuple(5. * M_PI / 180., 0.2, 0.1, 0.1),
-                               0.01,
-                               {Eigen::Isometry3d::Identity()});
-
-    std::cout << "======================== Multi cam =======================" << std::endl;
-    std::vector<Eigen::Isometry3d> trf_camI_vehicle;
     Eigen::Isometry3d p = Eigen::Isometry3d::Identity();
 
     p.rotate(Eigen::AngleAxisd(M_PI / 2., Eigen::Vector3d(1., 0., 0.)));
     p.rotate(Eigen::AngleAxisd(M_PI / 2., Eigen::Vector3d(0., 0., 1.)));
     p.translate(Eigen::Vector3d(-1.5, 0.2, -1.35));
+
+    p = p.inverse();
+
+    std::cout << "======================== Mono =======================" << std::endl;
+    std::cout << "--------------------------- zero noise ----------------------------" << std::endl;
+    evaluate_bundle_adjustment(std::make_tuple(0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.001, {p});
+
+    std::cout << "--------------------------- noise "
+                 "=0.,0.,5pi/180,0.2,0.1,0.1----------------------------"
+              << std::endl;
+    evaluate_bundle_adjustment(std::make_tuple(0., 0.), std::make_tuple(5. * M_PI / 180., 0.2, 0.1, 0.1), 0.001, {p});
+
+    std::cout << "--------------------------- noise "
+                 "=0.1,0.1,5pi/180,0.2,0.1,0.1----------------------------"
+              << std::endl;
+    evaluate_bundle_adjustment(std::make_tuple(1.5, 1.5), std::make_tuple(5. * M_PI / 180., 0.2, 0.1, 0.1), 0.01, {p});
+
+    std::cout << "======================== Multi cam =======================" << std::endl;
+
+    std::cout << p.matrix() << std::endl;
+
+    std::vector<Eigen::Isometry3d> trf_camI_vehicle;
     trf_camI_vehicle.push_back(p);
 
     p.translate(Eigen::Vector3d(0., -0.5, 0.));
@@ -834,6 +837,7 @@ TEST(KeyFrameBundleAdjustment, solve) {
 
     std::cout << p.matrix() << std::endl;
 
+    std::cout << "--------------------------- zero noise ----------------------------" << std::endl;
     evaluate_bundle_adjustment(std::make_tuple(0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.001, trf_camI_vehicle);
 
     std::cout << "--------------------------- noise "
@@ -1074,6 +1078,9 @@ TEST(KeyFrameBundleAdjustment, solve_depth) {
     p.rotate(Eigen::AngleAxisd(M_PI / 2., Eigen::Vector3d(1., 0., 0.)));
     p.rotate(Eigen::AngleAxisd(M_PI / 2., Eigen::Vector3d(0., 0., 1.)));
     p.translate(Eigen::Vector3d(-1.5, 0.2, -1.35));
+
+    p = p.inverse();
+
     trf_camI_vehicle.push_back(p);
 
     p.translate(Eigen::Vector3d(0., -0.5, 0.));
@@ -1100,8 +1107,8 @@ TEST(KeyFrameBundleAdjustment, solve_depth) {
 }
 
 
-// Test if 3d landmarks are created correctly by using tracklets with depth bias
 TEST(LandmarkCreator, CreateWithDepth) {
+    // Test if 3d landmarks are created correctly by using tracklets with depth bias
 
     // calc data on keyframes
     std::vector<Eigen::Vector3d> lms_origin{Eigen::Vector3d(0.5, 3., 5.5),
