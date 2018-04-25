@@ -57,15 +57,47 @@ standard mrt procedure
 ## Usage
 
 * bundle_adjuster_keyframes does bundle adjustment on keyframes, triangulates landmarks if needed
-
-```cpp
-Example
-```
-
 * You need to add Keyframes to bundle_adjuster to add data
 
 ```cpp
-Example
+// Beforehand you calculated:
+// The tracklets with or wihout depth data keyframe_bundle_adjustment::Tracklets tracklets;
+// The frame to frame motion estimation std::map<KeyframeId, Eigen::Isometry3d> pose_prior;
+
+using namespace keyframe_bundle_adjustment;
+// This is the main class where bundle adjustment is done.
+BundleAdjusterKeyframes b;
+
+// Create a pinhole camera, with intrinsics and extrinsics.
+double focal_length=600;
+Eigen::Vector2d principal_point(200.,100.);
+Eigen::Isometry3d transform_cam_vehicle = Eigen::Isometry3d::Identity();
+Camera::Ptr camera = std::make_shared<Camera>(focal_length, principal_point, transform_cam_vehicle;
+
+// Create Keyframes from data.
+// Timestamps here are only ints, but you should use the system time of the measurement in nano seconds.
+// This is the first Keyframe so we need to fix its position.
+b.push(Keyframe(0, tracklets, camera, pose_prior.at(0), Keyframe::FixationStatus::Pose));
+
+// If no depth data is available we need to fix scale for second Keyframe.
+b.push(Keyframe(1, tracklets, camera, pose_prior.at(1), Keyframe::FixationStatus::Scale));
+
+// All others will have 6 DOFs.
+for (int i = 2; i < int(stamps.size()); ++i) {
+    b.push(Keyframe(i, tracklets, camera, pose_prior.at(i)));
+}
+
+// Run bundle adjuster.
+std::string summary = b.solve();
+std::cout << summary << std::endl;
+
+// Access optimized poses and print them.
+for(const auto & kf_ptrs:b.getActiveKeyframePtrs()){
+    std::cout   <<"Keyframe id="<<kf_ptrs.first
+                <<"\noptimized keyframe pose=\n"<<kf_ptrs.second->getEigenPose().matrix()
+                <<"------------------------------------"<<
+                <<std::endl;
+}
 ```
 
 * If you do not want to add all frames as keyframes, you need to do selection, which does KeyframeSelection for you

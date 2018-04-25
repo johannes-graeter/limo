@@ -538,13 +538,13 @@ std::map<LandmarkId, std::vector<Eigen::VectorXd>> calculateResiduals(
     std::map<LandmarkId, std::vector<Eigen::VectorXd>> out;
     for (const auto& res_id_ind : access_index) {
         // Get residual size.
-        const auto& res_size = res_ids.at(res_id_ind.first).second;
+        const int& res_size = res_ids.at(res_id_ind.first).second;
 
         // Get residuals from vector and store them as Eigen::VectorXd.
         int base_ind = res_id_ind.second;
         Eigen::VectorXd res_vec(res_size);
         for (int i = 0; i < res_size; ++i) {
-            res_vec[i] = residuals[base_ind + i];
+            res_vec[i] = residuals[static_cast<size_t>(base_ind + i)];
         }
 
         // Push back to output.s
@@ -593,7 +593,7 @@ std::set<LandmarkId> rejectQuantile(double quantile, std::vector<std::pair<Landm
 std::string mergeSummaries(const std::vector<ceres::Solver::Summary>& summaries) {
     std::stringstream ss;
     ss << "Merged summaries of BundleAdjusterKeyframes:\n";
-    for (int i = 0; i < int(summaries.size()); ++i) {
+    for (size_t i = 0; i < summaries.size(); ++i) {
         ss << "--------------------------------------------------\nIteration No." << i << "\n";
         ss << summaries[i].FullReport();
     }
@@ -919,5 +919,18 @@ const Keyframe& BundleAdjusterKeyframes::getKeyframe(TimestampSec timestamp) con
         }
         return *(iter->second);
     }
+}
+
+const char* BundleAdjusterKeyframes::NotEnoughKeyframesException::what() const noexcept {
+    std::stringstream ss;
+    ss << "Not enough keyframes available in bundle_adjuster_keyframes. Should be " << num_should_be << " is "
+       << num_is;
+    return ss.str().c_str();
+}
+
+const char* BundleAdjusterKeyframes::KeyframeNotFoundException::what() const noexcept {
+    std::stringstream ss;
+    ss << "keyframe corresponding to timestamp " << ts_ << " nano seconds not found";
+    return ss.str().c_str();
 }
 }

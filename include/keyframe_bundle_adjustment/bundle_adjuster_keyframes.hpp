@@ -57,28 +57,20 @@ private:                                                     // structs
 public: // exceptions
     struct NotEnoughKeyframesException : public std::exception {
 
-        NotEnoughKeyframesException(int num_is, int num_should_be) : num_is(num_is), num_should_be(num_should_be) {
+        NotEnoughKeyframesException(size_t num_is, size_t num_should_be)
+                : num_is(num_is), num_should_be(num_should_be) {
             ;
         }
-        virtual const char* what() const throw() {
-            std::stringstream ss;
-            ss << "Not enough keyframes available in bundle_adjuster_keyframes. Should be " << num_should_be << " is "
-               << num_is;
-            return ss.str().c_str();
-        }
+        const char* what() const noexcept;
 
-        int num_is;        ///< number of keyframes that is present
-        int num_should_be; ///< number of keyframes that should be present
+        size_t num_is;        ///< number of keyframes that is present
+        size_t num_should_be; ///< number of keyframes that should be present
     };
     struct KeyframeNotFoundException : public std::exception {
         KeyframeNotFoundException(TimestampNSec timestamp) : ts_(timestamp) {
             ;
         }
-        virtual const char* what() const throw() {
-            std::stringstream ss;
-            ss << "keyframe corresponding to timestamp " << ts_ << " nano seconds not found";
-            return ss.str().c_str();
-        }
+        const char* what() const noexcept;
 
         TimestampNSec ts_; ///< timestamp for which keyframe was not found
     };
@@ -124,7 +116,7 @@ public: // methods
     /**
      * @brief Checks if a landmark obversed in a given keyframe contains depth information
      * @param kf, keyframe
-     * @Kandmark lId, id of the landmark which s observed by the given keyframe
+     * @param LandmarkId, id of the landmark which s observed by the given keyframe
      * @return True, if the observed measurement of the landmark has a valid depth value
      */
     bool containsDepth(const Keyframe& kf, const LandmarkId lId) const;
@@ -191,7 +183,7 @@ public: // methods
      * measurements
      * @param kf keyFrame from which Pose the landmark is calculated using the measured depth
      * @param lId Unique Id of the new landmark
-     * @poseAbs calculated position of the new landmark in world frame
+     * @param poseAbs, calculated position of the new landmark in world frame
      * @return true, if calculation successful
      */
     bool calculateLandmark(const Keyframe& kf, const LandmarkId& lId, v3& posAbs);
@@ -199,7 +191,7 @@ public: // methods
     /**
      * @brief calculates landmark position in world space using triangulation
      * @param lId Unique Id of the new landmark
-     * @poseAbs calculated position of the new landmark in world frame
+     * @param poseAbs calculated position of the new landmark in world frame
      * @return true, if calculation successful
      */
     bool calculateLandmark(const LandmarkId& lId, v3& posAbs);
