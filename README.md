@@ -65,7 +65,7 @@ Or:
 
 If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic, ceres, mrt_cmake_modules and limo).
 
-* Download it from [www.mrt.kit.edu/graeterweb/limo_core.ova](www.mrt.kit.edu/graeterweb/limo_core.ova).
+* Download it from [https://www.mrt.kit.edu/graeterweb/limo_core.ova](https://www.mrt.kit.edu/graeterweb/limo_core.ova).
 * Find the library in ~/workspaces/limo/src/limo.
 * Check out the unittests for examples on simulated data.
 * Password for the vm-image is "1234".
