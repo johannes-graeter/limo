@@ -29,26 +29,26 @@ This is work in progress, detailed install instructions and examples will follow
 ### Build
 
 * initiate a catkin workspace:
-    *<code>cd *your_catkin_workspace*</code>
-    *<code>cd *your_catkin_workspace*/src</code>
-    *<code>catkin_init_workspace</code>
+    * <code>cd *your_catkin_workspace*</code>
+    * <code>cd *your_catkin_workspace*/src</code>
+    * <code>catkin_init_workspace</code>
 
 * clone mrt_cmake_modules into src of workspace:
-    *<code>cd *your_catkin_workspace*/src</code>
-    *<code>git clone https://github.com/KIT-MRT/mrt_cmake_modules.git</code>
+    * <code>cd *your_catkin_workspace*/src</code>
+    * <code>git clone https://github.com/KIT-MRT/mrt_cmake_modules.git</code>
 
 * clone momo into src of workspace:
-    *<code>cd *your_catkin_workspace*/src</code>
-    *<code>git clone https://github.com/johannes-graeter/momo.git</code>
+    * <code>cd *your_catkin_workspace*/src</code>
+    * <code>git clone https://github.com/johannes-graeter/momo.git</code>
 
 * build it with catkin:
-    *<code>cd *your_catkin_workspace*</code>
-    *<code>catkin_make</code>
+    * <code>cd *your_catkin_workspace*</code>
+    * <code>catkin_make</code>
 
 * unittests:
-    *uncomment **<test_depend>gtest</test_depend>** in package.xml to activate unittests
-    *<code>cd *your_catkin_workspace*</code>
-    *<code>catkin_make run_tests</code>
+    * uncomment **<test_depend>gtest</test_depend>** in package.xml to activate unittests
+    * <code>cd *your_catkin_workspace*</code>
+    * <code>catkin_make run_tests</code>
 
 * tested with docker ros image
 
