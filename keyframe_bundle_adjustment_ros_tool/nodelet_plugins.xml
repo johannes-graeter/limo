@@ -1,0 +1,12 @@
+<library path="lib/libmono_standalone_nodelet">
+<class name="keyframe_bundle_adjustment_ros_tool/MonoStandaloneNodelet"
+       type="keyframe_bundle_adjustment_ros_tool::MonoStandaloneNodelet" base_class_type="nodelet::Nodelet">
+  <description></description>
+</class>
+</library>
+<library path="lib/libmono_lidar_nodelet">
+<class name="keyframe_bundle_adjustment_ros_tool/MonoLidarNodelet"
+       type="keyframe_bundle_adjustment_ros_tool::MonoLidarNodelet" base_class_type="nodelet::Nodelet">
+  <description></description>
+</class>
+</library>

@@ -1,0 +1,8 @@
+<launch>
+    <!-- uncomment this if your unittest advertises /clock" -->
+    <!--<param name="/use_sim_time" value="True"/>-->
+
+    <test test-name="mono_standalone_node_test" pkg="keyframe_bundle_adjustment_ros_tool" type="mono_standalone_node-test" time-limit="60.0"/>
+    <include file="$(find keyframe_bundle_adjustment_ros_tool)/launch/mono_standalone_node.launch"/>
+</launch>
+

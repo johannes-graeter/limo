@@ -1,0 +1,9 @@
+<launch>
+
+  <arg name="config" default="$(find keyframe_bundle_adjustment_ros_tool)/launch/params/mono_lidar_parameters.yaml" />
+
+  <node pkg="keyframe_bundle_adjustment_ros_tool" type="mono_lidar" name="mono_lidar" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+
+</launch>

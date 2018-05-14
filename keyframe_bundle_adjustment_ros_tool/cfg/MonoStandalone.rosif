@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+"""
+Add your desired parameters here. All required headers will be generated from this.
+!!!IMPORTANT this file must be executable !!!
+
+Use one of these commands to add parameters to your parameter struct:
+
+def add(self, name, paramtype, description, level=0, edit_method='""', default=None, min=None, max=None, configurable=False, global_scope=False, constant=False):
+        Adds parameters to your parameter struct.
+
+def add_enum(self, name, description, entry_strings, default=None, paramtype='int'):
+        Adds an enum to dynamic reconfigure
+
+def add_group(self, name):
+        Create a parameter group for the dynamic_reconfigure window
+
+def add_publisher(self, name, message_type, description, default_topic="", default_queue_size=5, topic_param=None,
+                  queue_size_param=None, header=None, module=None, configurable=False, global_scope=False,
+                  constant=False):
+        Adds an initialized publisher to your parameter struct and parameter for its topic and queue size
+
+def add_subscriber(self, name, message_type, description, default_topic="", default_queue_size=5, no_delay=False,
+                   topic_param=None, queue_size_param=None, header=None, module=None, configurable=False,
+                   global_scope=False, constant=False):
+        Adds an initialized subscriber to your parameter struct and parameters for topic and queue size.
+
+
+For more information on the API, see here: https://gitlab.mrt.uni-karlsruhe.de/MRT/rosinterface_handler/blob/master/doc/HowToWriteYourFirstInterfaceFile.md
+"""
+from rosinterface_handler.interface_generator_catkin import *
+
+gen = InterfaceGenerator()
+
+# Add a parameter for changing verbosity (=log level) on the fly
+gen.add_verbosity_param(configurable=True)
+
+# Diagnostics
+gen.add("diag_pub_topic", paramtype='std::string', description="Topicname for diagnostic publisher", default="out_topic_diagnosed")
+gen.add("diagnostic_updater_name", paramtype='std::string', description="Name of diagnostic updater.", default="MonoStandaloneUpdater")
+gen.add("diagnostic_updater_hardware_id", paramtype='std::string', description="Identifier for hardware.", default="MonoStandalone")
+gen.add("diagnostic_updater_rate", paramtype='double', description="Expected updater frequency", default=1)
+gen.add("diagnostic_updater_rate_tolerance", paramtype='double', description="Tolerance with which bounds must be satisfied.", default=1)
+
+# Frame ids
+gen.add("calib_target_frame_id", paramtype='std::string', description="target frame id of calibration", default="camera", configurable=True, global_scope=False)
+gen.add("calib_source_frame_id", paramtype='std::string', description="source frame id of calibration", default="vehicle", configurable=True, global_scope=False)
+
+gen.add("tf_parent_frame_id", paramtype='std::string', description="parent frame id for tf publishing if empty nothing is published; format: tf2 convention (without / at beginning)", default="local_cs", configurable=True)
+gen.add("tf_child_frame_id", paramtype='std::string', description="child frame id for tf publishing if empty nothing is published; format: tf2 convention (without / at beginning)", default="", configurable=True)
+
+# Publisher and subscriber (group name will show up in dynamic_reconfigure window)
+pub_sub = gen.add_group("Publisher and subscriber")
+pub_sub.add_subscriber("tracklets_subscriber", message_type="matches_msg_ros::MatchesMsg", description="subscriber for tracklets from one camera", default_topic="in_topic", no_delay=True, configurable=False)
+pub_sub.add_subscriber("camera_info_subscriber", message_type="sensor_msgs::CameraInfo", description="subscriber for camera info", default_topic="in_topic_camera_info", no_delay=True, configurable=False)
+pub_sub.add_publisher("trajectory_publisher", message_type="mapping_msgs_ros::PoseConstraintArray", description="bundled keyframe poses", default_topic="trajectory_topic", configurable=True)
+pub_sub.add_publisher("active_path_publisher", message_type="nav_msgs::Path", description="publish path that is actively optimized in bundle adjustment for plotting", default_topic="active_path_topic", configurable=True)
+pub_sub.add_publisher("path_publisher", message_type="nav_msgs::Path", description="publish whole path for plotting", default_topic="path_topic", configurable=True)
+pub_sub.add_publisher("landmarks_publisher", message_type="sensor_msgs::PointCloud2", description="publish landmarks in global frame", default_topic="landmarks_topic", configurable=True)
+
+# Bundle adjustment parameters
+gen.add("max_number_landmarks_near_bin", paramtype='int', description="number of landmarks in near bin by observation delta angle", default="300", min="10", max="5000", configurable=True)
+gen.add("max_number_landmarks_middle_bin", paramtype='int', description="number of landmarks in middle bin chosen randomly", default="300", min="10", max="5000", configurable=True)
+gen.add("max_number_landmarks_far_bin", paramtype='int', description="number of landmarks in far bin by tracklength", default="300", min="10", max="5000", configurable=True)
+gen.add("time_between_keyframes_sec", paramtype='double', description="time in seconds between the keyframes", default="0.1", min="0.01", max="1.0", configurable=True)
+gen.add("min_median_flow", paramtype='double', description="minimum median flow so that frame is accepted as keyframe, especially important for standstill", default="8.", min="0.", max="200.", configurable=True)
+gen.add("critical_rotation_difference", paramtype='double', description="if rotation between last frame and that is bigger keyframe is selected, important for curves", default="0.08", min="0.", max="1.5", configurable=True)
+
+# other parameters
+gen.add("show_debug_image", paramtype='bool', description="if true show measurements on keyframes in debug image", default="false", configurable=True)
+gen.add("motion_prior_ransac_probability", paramtype='double', description="success probability of ransac algrith for 5point algorithm for motino prior. determines number of iterations.", default="0.99", max="0.99999", min="0.001", configurable=True)
+gen.add("max_solver_time", paramtype='double', description="maximum solver time in seconds, use that to make it real time", default="0.2", min="0.01", max="20.0", configurable=True)
+
+
+# DO NOT TOUCH THIS LINE
+#Syntax : Package, Node, Config Name(The final name will be MonoStandaloneConfig)
+exit(gen.generate("keyframe_bundle_adjustment_ros_tool", "mono_standalone", "MonoStandalone"))

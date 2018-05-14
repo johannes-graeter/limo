@@ -1,0 +1,46 @@
+<package format="2">
+  <name>keyframe_bundle_adjustment_ros_tool</name>
+  <version>0.0.0</version>
+  <description>Ros tool for keyframe_bundle_adjustment library.</description>
+
+  <license>GPLv3</license>
+  <maintainer email="johannes.graeter@gmail.com">Johannes Graeter</maintainer>
+  <author email="johannes.graeter@gmail.com">Johannes Graeter</author>
+  <url type="repository">http://github.com/johannes-graeter/limo</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>mrt_cmake_modules</build_depend>
+  <build_depend>rosinterface_handler</build_depend>
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <test_depend>gtest</test_depend>
+  <test_depend>rostest</test_depend>
+
+  <build_depend>roscpp</build_depend>
+  <!-- <depend>rospy</depend> Use this instead of roscpp  when writing a python node -->
+  <depend>roslib</depend>
+  <depend>nodelet</depend>
+
+  <depend>keyframe_bundle_adjustment</depend>
+  <depend>viso_feature_tracking_ros_tool</depend>
+
+  <depend>matches_msg_ros</depend>
+  <depend>matches_msg_conversions_ros</depend>
+  <depend>mapping_msgs_ros</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>mrt_pcl</depend>
+
+  <depend>image_geometry</depend>
+
+  <depend>yaml-cpp</depend>
+
+  <depend>dynamic_reconfigure</depend>
+  <depend>message_filters</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_eigen</depend>
+  <depend>diagnostic_updater</depend>
+  <export>
+    <nodelet plugin="${prefix}/nodelet_plugins.xml" /><!-- Other tools can request additional information be placed here -->
+  </export>
+</package>

@@ -1,0 +1,18 @@
+<launch>
+
+    <arg name="config" default="$(find keyframe_bundle_adjustment_ros_tool)/launch/params/mono_standalone_parameters.yaml"/>
+    <arg name="nodelet_manager_name" default="nodelet_manager_mono_standalone"/>
+    <arg name="start_nodelet_manager" default="true"/>
+    <arg name="nodelet_name" default="mono_standalone"/>
+
+    <!-- Nodelet manager (if enabled) -->
+    <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" args="manager" output="screen"
+          if="$(arg start_nodelet_manager)"/>
+
+    <!-- MonoStandalone -->
+    <node pkg="nodelet" type="nodelet" name="$(arg nodelet_name)"
+          args="load keyframe_bundle_adjustment_ros_tool/MonoStandaloneNodelet $(arg nodelet_manager_name)" output="screen" required="true">
+        <rosparam command="load" file="$(arg config)"/>
+    </node>
+
+</launch>
