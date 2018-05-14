@@ -22,7 +22,6 @@
   <depend>nodelet</depend>
 
   <depend>keyframe_bundle_adjustment</depend>
-  <depend>viso_feature_tracking_ros_tool</depend>
 
   <depend>matches_msg_ros</depend>
   <depend>matches_msg_conversions_ros</depend>
