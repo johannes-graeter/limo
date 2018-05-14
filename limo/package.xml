@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>limo</name>
+  <version>1.6.0</version>
+  <description>Meta-package for feature_tracking library.</description>
+  <maintainer email="johannes.graeter@kit.edu">Johannes Gräter</maintainer>
+  <license>GPLv3</license>
+  <url type="repository">http://github.com/johannes-graeter/limo</url>
+  <author email="johannes.graeter@gmail.com">Johannes Gräter</author>
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>keyframe_bundle_adjustment</exec_depend>
+  <exec_depend>keyframe_bundle_adjustment_ros_tool</exec_depend>
+  <exec_depend>matches_msg_conversoins_ros</exec_depend>
+  <exec_depend></exec_depend>
+  <export>
+    <metapackage />
+  </export>
+</package>
