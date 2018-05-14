@@ -57,7 +57,6 @@ gen.add("tf_child_frame_id", paramtype='std::string', description="child frame i
 pub_sub = gen.add_group("Publisher and subscriber")
 pub_sub.add_subscriber("tracklets_subscriber", message_type="matches_msg_depth_ros::MatchesMsgWithOutlierFlag", description="tracklets with depth and outlier flags", default_topic="in_topic_tracklets", no_delay=True, configurable=True)
 pub_sub.add_subscriber("camera_info_subscriber", message_type="sensor_msgs::CameraInfo", description="camera info for intrinsics", default_topic="in_topic_cam_info", no_delay=True, configurable=True)
-pub_sub.add_publisher("trajectory_publisher", message_type="mapping_msgs_ros::PoseConstraintArray", description="bundled keyframe poses", default_topic="trajectory_topic", configurable=True)
 pub_sub.add_publisher("active_path_publisher", message_type="nav_msgs::Path", description="publish path that is actively optimized in bundle adjustment for plotting", default_topic="active_path_topic", configurable=True)
 pub_sub.add_publisher("path_publisher", message_type="nav_msgs::Path", description="publish whole path for plotting", default_topic="path_topic", configurable=True)
 pub_sub.add_publisher("landmarks_publisher", message_type="sensor_msgs::PointCloud2", description="publish landmarks in global frame", default_topic="landmarks_topic", configurable=True)

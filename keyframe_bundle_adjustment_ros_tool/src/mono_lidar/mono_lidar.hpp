@@ -7,7 +7,6 @@
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/transform_listener.h>
 
-#include <mapping_msgs_ros/PoseDeltaConstraintArray.h>
 #include <matches_msg_depth_ros/MatchesMsgWithOutlierFlag.h>
 #include <sensor_msgs/CameraInfo.h>
 
@@ -34,8 +33,6 @@ class MonoLidar {
 
     using TrackletsMsg = matches_msg_depth_ros::MatchesMsgWithOutlierFlag;
     using CameraInfoMsg = sensor_msgs::CameraInfo;
-
-    using OutputMsg = mapping_msgs_ros::PoseDeltaConstraintArray;
 
     using SyncPolicy = message_filters::sync_policies::ExactTime<TrackletsMsg, CameraInfoMsg>;
     using Synchronizer = message_filters::Synchronizer<SyncPolicy>;

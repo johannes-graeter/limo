@@ -273,12 +273,6 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
 
             auto start_debug_publish = std::chrono::steady_clock::now();
             // convert poses to pose constraint array and publish
-            auto out_msg = helpers::convertToOutmsg(
-                tracklets_msg->header.stamp, bundle_adjuster_, interface_.calib_source_frame_id);
-            interface_.trajectory_publisher.publish(out_msg);
-            ROS_DEBUG_STREAM("In MonoLidar: published " << out_msg.constraints.size()
-                                                        << " pose delta constraints to topic "
-                                                        << interface_.trajectory_publisher_topic);
             if (interface_.show_debug_image) {
                 cv::imshow("flow debug image keyframes", helpers::getFlowImg(bundle_adjuster_));
                 cv::waitKey(30);

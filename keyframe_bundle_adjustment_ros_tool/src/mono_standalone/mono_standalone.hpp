@@ -9,7 +9,6 @@
 
 #include <message_filters/sync_policies/approximate_time.h>
 
-#include <mapping_msgs_ros/PoseDeltaConstraintArray.h>
 #include <matches_msg_ros/MatchesMsg.h>
 #include <sensor_msgs/CameraInfo.h>
 
@@ -38,7 +37,6 @@ class MonoStandalone {
 
     using TrackletsMsg = matches_msg_ros::MatchesMsg;
     using CameraInfoMsg = sensor_msgs::CameraInfo;
-    using OutputMsg = mapping_msgs_ros::PoseDeltaConstraintArray;
 
     using ApproximateTime =
         message_filters::sync_policies::ApproximateTime<TrackletsMsg, CameraInfoMsg>;

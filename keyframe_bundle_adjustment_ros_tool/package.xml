@@ -26,7 +26,6 @@
 
   <depend>matches_msg_ros</depend>
   <depend>matches_msg_conversions_ros</depend>
-  <depend>mapping_msgs_ros</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>mrt_pcl</depend>

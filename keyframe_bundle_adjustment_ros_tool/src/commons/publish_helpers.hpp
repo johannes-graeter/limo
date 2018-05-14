@@ -10,7 +10,6 @@
 
 #include <Eigen/Eigen>
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
-#include <mapping_msgs_ros/PoseDeltaConstraintArray.h>
 
 // for publishing landmarks
 #include <pcl/point_types.h>
@@ -175,53 +174,6 @@ void publishLandmarks(ros::Publisher& landmarks_publisher,
     }
 
     landmarks_publisher.publish(msg);
-}
-/**
- * @brief convertToOutmsg, convert from keyframe poses to output
- * @param cur_stamp, current timestamp of measurement
-* @param bundle_adjuster
- * @return msg to be published as arra of pose deltas
- */
-
-mapping_msgs_ros::PoseDeltaConstraintArray convertToOutmsg(
-    ros::Time cur_stamp,
-    keyframe_bundle_adjustment::BundleAdjusterKeyframes::Ptr bundle_adjuster,
-    std::string calib_source_frame_id) {
-
-    using OutputMsg = mapping_msgs_ros::PoseDeltaConstraintArray;
-    OutputMsg out_msg;
-    out_msg.header.stamp = cur_stamp;
-    out_msg.header.frame_id = calib_source_frame_id;
-
-    // first kf is coordinate system get timestamp
-    auto it =
-        std::min_element(bundle_adjuster->keyframes_.cbegin(),
-                         bundle_adjuster->keyframes_.cend(),
-                         [](const auto& a, const auto& b) { return a.second->timestamp_ < b.second->timestamp_; });
-    ros::Time timestamp_origin;
-    timestamp_origin.fromNSec(it->second->timestamp_);
-    // convert all keyframe poses to delta constraints
-    for (const auto& kf : bundle_adjuster->keyframes_) {
-        mapping_msgs_ros::PoseDeltaConstraint pose_delta_constraint;
-        ros::Time ts;
-        ts.fromNSec(kf.second->timestamp_);
-        pose_delta_constraint.header.stamp = ts;
-        pose_delta_constraint.header.frame_id = calib_source_frame_id;
-
-        // convert the eigen stuff to geometry_msgs
-        Eigen::Affine3d current_motion{kf.second->getEigenPose()};
-        pose_delta_constraint.pose_delta.pose = tf2::toMsg(current_motion);
-        // poses are defined from current from to origin
-        pose_delta_constraint.id_from = ts.toNSec();
-        pose_delta_constraint.id_to = timestamp_origin.toNSec();
-
-        pose_delta_constraint.stamp_from = ts;
-        pose_delta_constraint.stamp_to = timestamp_origin;
-
-        out_msg.constraints.push_back(pose_delta_constraint);
-    }
-
-    return out_msg;
 }
 
 /**
