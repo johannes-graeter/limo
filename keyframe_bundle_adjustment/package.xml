@@ -2,12 +2,12 @@
 <package format="2">
   <name>keyframe_bundle_adjustment</name>
   <version>0.0.0</version>
-  <description>ToDo: Edit package description</description>
+  <description>Keyframe bundle adjustment library. Core for limo.</description>
 
-  <license>contact-the-maintainer</license>
-  <maintainer email="johannes.graeter@kit.edu">Johannes Graeter</maintainer>
-  <author email="johannes.graeter@kit.edu">Johannes Graeter</author>
-  <url type="repository">https://gitlab.mrt.uni-karlsruhe.de/graeter/keyframe_bundle_adjustment.git</url>
+  <license>GPLv3</license>
+  <maintainer email="johannes.graeter@gmail.com">Johannes Graeter</maintainer>
+  <author email="johannes.graeter@gmail.com">Johannes Graeter</author>
+  <url type="repository">http://github.com/johannes-graeter/limo</url>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mrt_cmake_modules</build_depend>
