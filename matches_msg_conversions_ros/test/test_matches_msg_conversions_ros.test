@@ -1,5 +1,0 @@
-<launch>
-  <!-- use this like a normal launch file to set up your test environment. The test tag below is used to launch your unittest node-->
-
-  <test test-name="test_matches_msg_conversions_ros" pkg="matches_msg_conversions_ros" type="test_matches_msg_conversions_ros-test" />
-</launch>
