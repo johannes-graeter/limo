@@ -1,0 +1,49 @@
+<launch>
+
+  <arg name="config" default="$(find keyframe_bundle_adjustment_ros_tool)/launch/params/mono_lidar_parameters.yaml" />
+
+  <node pkg="keyframe_bundle_adjustment_ros_tool" type="mono_lidar" name="mono_lidar" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="verbosity" value="debug"/>
+    <param name="tracklets_subscriber_topic" value="/tracklets_depth/tracklets/left/with_outlier_label"/>
+    <param name="camera_info_subscriber_topic" value="/sensor/camera/grayscale/left/camera_info"/>
+    <param name="trajectory_publisher_topic" value="/estimate/trajectory"/>
+    <param name="path_publisher_topic" value="/estimate/complete_path"/>
+    <param name="active_path_publisher_topic" value="/estimate/active_path"/>
+    <param name="landmarks_publisher_topic" value="/estimate/landmarks"/>
+
+    <param name="calib_target_frame_id" value="estimate/sensor/camera/grayscale/left"/>
+    <param name="calib_source_frame_id" value="estimate/vehicle"/>
+    
+    <param name="tf_waiting_time" value="0.1"/>
+    
+    <param name="tf_parent_frame_id" value="estimate/local_cs_vehicle"/>
+    <param name="tf_child_frame_id" value="estimate/vehicle"/>
+
+    <param name="prior_global_frame" value="estimate_prior/local_cs_vehicle"/>
+    <param name="prior_vehicle_frame" value="estimate_prior/vehicle"/>
+
+    <param name="max_number_landmarks_near_bin" value="400"/>
+    <param name="max_number_landmarks_middle_bin" value="400"/>
+    <param name="max_number_landmarks_far_bin" value="400"/>
+
+    <param name="time_between_keyframes_sec" value="0.3"/>
+    <param name="min_median_flow" value="1.0"/>
+    <param name="critical_rotation_difference" value="0.03"/>
+    <param name="show_debug_image" value="false"/>
+    <param name="max_solver_time" value="0.4"/>
+
+    <param name="robust_loss_depth_thres" value="0.16"/>
+    <param name="robust_loss_reprojection_thres" value="1.6"/>
+    <param name="outlier_rejection_quantile" value="0.95"/>
+    <param name="outlier_rejection_num_iterations" value="0"/>
+    <param name="shrubbery_weight" value="0.9"/>
+    
+    <param name="dump_path" value="/tmp/poses_dump.txt"/>
+    
+    <param name="min_number_connecting_landmarks" value="10"/>
+
+    <param name="outlier_labels_yaml" value="$(find keyframe_bundle_adjustment_ros_tool)/res/outlier_labels.yaml"/>
+  </node>
+
+</launch>

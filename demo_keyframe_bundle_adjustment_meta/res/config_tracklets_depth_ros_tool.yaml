@@ -1,0 +1,47 @@
+%YAML:1.0
+
+# _____ Subscriber _____
+
+subscriber_msg_name_cloud: /sensor/velodyne/cloud_euclidean
+subscriber_msg_name_tracklets: /matches/grayscale/left
+subscriber_msg_name_camera_info: /sensor/camera/grayscale/left/camera_info
+# subscriber_msg_name_semantics: /sensor/camera/color_labels/left/image_rect
+
+# _____ Publisher _____
+
+publisher_msg_name_cloud_interpolated: /monolidar_debug/cloud_interpolated
+publisher_msg_name_cloud_camera_cs: /monolidar_debug/cloud_camera_cs
+publisher_msg_name_image_depth: /monolidar_debug/image_depth
+publisher_msg_name_image_projection_cloud: /monolidar_debug/image_cloud_projection
+publisher_msg_name_depthcalc_stats: /monolidar_debug/depthcalc_stats
+publisher_msg_name_tracklets_depth: /tracklets_depth/tracklets/left
+
+image_depth_cam_point_distance: 30
+image_depth_cam_fontsize: 0.35
+
+# _____ Frame names _____
+
+tf_frame_name_cameraLeft: sensor/camera
+tf_frame_name_velodyne: sensor/velodyne
+
+# _____ Program flow _____
+
+# 1: publish pointcloud in camera cs; 0: do not publish (saves processing ressources)
+do_publish_cloud_camera_cs: 0
+
+# 1: publish projection of the pointcloud into the image frame of the camera; 0: do not publish (saves processing ressources)
+do_publish_image_projection_cloud: 0
+
+# 1: publish interpolated points (which are the estimated 3d points for selected points (mostly feature points) from the image cs) 
+do_publish_cloud_interpolated: 0
+
+# 1: publishes statistics how many depth calculations of the feature points succeeded and by which pipeline step they were rejected if not
+do_publish_stats: 0
+
+# 1: publishes a depth image of the calculated depths
+do_publish_image_depth: 0
+
+
+# _____ Misc _____
+
+msg_queue_size: 10

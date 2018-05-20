@@ -1,0 +1,33 @@
+<launch>
+
+  <arg name="config" default="$(find keyframe_bundle_adjustment_ros_tool)/launch/params/mono_standalone_parameters.yaml" />
+
+  <node pkg="keyframe_bundle_adjustment_ros_tool" type="mono_standalone" name="mono_standalone" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="verbosity" value="info"/>
+    <param name="tracklets_subscriber_topic" value="/matches/grayscale/left"/>
+    <param name="camera_info_subscriber_topic" value="/sensor/camera/grayscale/left/camera_info"/>
+    <param name="trajectory_publisher_topic" value="/estimate/trajectory"/>
+    <param name="path_publisher_topic" value="/estimate/complete_path"/>
+    <param name="active_path_publisher_topic" value="/estimate/active_path"/>
+    <param name="landmarks_publisher_topic" value="/estimate/landmarks"/>
+
+    <param name="calib_source_frame_id" value="estimate/sensor/camera/grayscale/left"/>
+    <param name="calib_target_frame_id" value="estimate/vehicle"/>
+
+    <param name="tf_parent_frame_id" value="estimate/local_cs"/>
+    <param name="tf_child_frame_id" value="estimate/vehicle"/>
+
+    <param name="max_number_landmarks_near_bin" value="2000"/>
+    <param name="max_number_landmarks_middle_bin" value="2000"/>
+    <param name="max_number_landmarks_far_bin" value="2000"/>
+
+    <param name="time_between_keyframes_sec" value="0.2"/>
+    <param name="min_median_flow" value="5.0"/>
+    <param name="motion_prior_ransac_probability" value="0.8"/>
+    <param name="critical_rotation_difference" value="0.03"/>
+    <param name="show_debug_image" value="false"/>
+  </node>
+  
+
+</launch>

@@ -1,0 +1,20 @@
+<launch>
+  <arg name="camera_name" default="left" />
+    
+  <!--gamma correction-->
+  <node pkg="image_preproc_ros_tool" type="gamma_correction" name="gamma_correction_node_$(arg camera_name)" output="log">
+    <remap from="src/image" to="/sensor/camera/grayscale/$(arg camera_name)/image_rect" />
+    <remap from="tgt/image" to="/sensor/camera/grayscale/$(arg camera_name)/image_rect_g" />
+    <param name="gamma" value="1.2" />
+    <param name="auto_gamma" value="true" />
+  </node>
+
+  <!-- feature tracking node -->
+  <node pkg="viso_feature_tracking_ros_tool" type="viso_feature_tracking_node" name="viso_feature_tracking_node_$(arg camera_name)" output="screen">
+    <param name="verbosity" value="info" />
+    <param name="config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/config_feature_matching.yaml" />
+    <remap from="tgt/matches" to="/matches/grayscale/$(arg camera_name)"/>
+    <remap from="src/image" to="/sensor/camera/grayscale/$(arg camera_name)/image_rect_g"/>
+  </node>
+
+</launch>

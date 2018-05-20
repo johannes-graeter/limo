@@ -1,0 +1,79 @@
+<launch>
+  <!--must be set before launchfile starts-->
+  <rosparam param="use_sim_time" subst_value="True"> true </rosparam>
+
+  <!--feature matching-->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/feature_matching.launch">
+      <arg name="camera_name" value="left"/>
+  </include>
+
+  <!-- depth estimator tracklets node -->
+  <arg name="config_depth_estimator" default="$(find demo_keyframe_bundle_adjustment_meta)/res/mono_lidar_fusion_parameters.yaml"/>
+  <arg name="config_tracklets_depth" default="$(find demo_keyframe_bundle_adjustment_meta)/res/config_tracklets_depth_ros_tool.yaml"/>
+  <node pkg="tracklets_depth_ros_tool" type="tracklet_depth_node" name="tracklet_depth_node" output="screen" required="true">
+    <param name="config_tracklet_depth" value="$(arg config_tracklets_depth)" />
+    <param name="config_depth_estimator" value="$(arg config_depth_estimator)" />
+    <param name="verbosity" value="info" />
+  </node>
+
+  <!-- plot matches in image -->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
+    <arg name="camera_name" value="left"/>
+    <arg name="verbosity" value="info"/>
+  </include>
+
+  <!--define aliases and static transforms-->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/tf2_static_aliases_kitti.launch">
+    <arg name="tf_namespace_alias" value="estimate"/>
+  </include>
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_vehicle_left_camera_estimate_prior" args="0 1.35 -1.08 1.5707963 -1.5707963 0 estimate_prior/sensor/camera estimate_prior/vehicle" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs_left_camera_estimate_prior" args="0 1.35 -1.08 1.5707963 -1.5707963 0 estimate_prior/local_cs estimate_prior/local_cs_vehicle" required="true"/>
+
+  <!-- This connects trres estimate_prior and estimate in case you wanted to calculate a transform between the two of them. -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_estimate_prior" args="0. 0. 0. 0. 0. 0. estimate/local_cs estimate_prior/local_cs" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs" args="0. 0. 0. 0. 0. 0. estimate/local_cs local_cs" required="true"/>
+  
+  <!-- Remapping of topics for gt -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_vehicle_camera_vehicle_gt" args=" 0 1.35 -1.08 1.5707963 -1.5707963 0 sensor/camera gt/vehicle" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs_camera_gt" args="0 1.35 -1.08 1.5707963 -1.5707963 0 local_cs gt/local_cs_vehicle" required="true"/>
+
+  <!-- Convert matches from msg without outlier flag to msg with outlier flag. -->
+  <node pkg="matches_conversion_ros_tool" type="add_outlier_flag" name="add_outlier_flag" output="screen">
+    <rosparam command="load" file="$(find matches_conversion_ros_tool)/launch/params/add_outlier_flag_parameters.yaml"/>
+    <param name="verbosity" value="info"/>
+    <param name="subscriber_topic" value="/tracklets_depth/tracklets/left"/>
+    <param name="publisher_topic" value="/tracklets_depth/tracklets/left/with_outlier_dummy"/>
+  </node>
+
+  <!-- Add labels from semantic labeling to matches. -->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>
+
+  <!-- Viewer for labels. -->
+  <!--<include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
+    <arg name="camera_name" value="left"/>
+    <arg name="topic_suffix" value="left/with_outlier_label"/>
+    <arg name="node_name_suffix" value="left_outlier"/>
+    <arg name="verbosity" value="info"/>
+    <arg name="has_outlier_flag" value="true"/>
+    <arg name="has_depth" value="true"/>
+    <arg name="mode" value="3"/>
+    <arg name="matches_topic" value="/tracklets_depth/tracklets/left/with_outlier_label"/>
+  </include>-->
+
+  <!-- launch keyframe bundle adjustment -->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/keyframe_ba_monolid.launch"/>
+
+  <!--trace estimate-->
+  <!--<node pkg="trajectory_tracer_ros_tool" type="trajectory_tracer" name="trajectory_tracer_gt" output="screen">
+    <rosparam command="load" file="$(find trajectory_tracer_ros_tool)/launch/params/trajectory_tracer_parameters.yaml"/>
+    <param name="subscriber_msg_name" value=""/>
+    <param name="publisher_msg_name" value="/gt/trajectory"/>
+    <param name="ref_frame_id" value="gt/vehicle"/>
+    <param name="msg_ref_frame_id" value="estimate/local_cs_vehicle"/>
+    <param name="frame_id" value="gt/local_cs_vehicle"/>
+    <param name="max_tracing_size" value="100000"/>
+  </node>-->
+  <!-- play rosbag with clock -->
+  <!-- /mrtstorage/datasets/kitti/odometry/odometry_rosbags/gray/00.bag"-->
+</launch>
