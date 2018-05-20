@@ -1,0 +1,18 @@
+<launch>
+
+    <arg name="config" default="$(find util_nodes_tf2_ros_tool)/launch/params/static_transform_alias_parameters.yaml"/>
+    <arg name="nodelet_manager_name" default="nodelet_manager_static_transform_alias"/>
+    <arg name="start_nodelet_manager" default="true"/>
+    <arg name="nodelet_name" default="static_transform_alias"/>
+
+    <!-- Nodelet manager (if enabled) -->
+    <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" args="manager" output="screen"
+          if="$(arg start_nodelet_manager)"/>
+
+    <!-- StaticTransformAlias -->
+    <node pkg="nodelet" type="nodelet" name="$(arg nodelet_name)"
+          args="load util_nodes_tf2_ros_tool/StaticTransformAliasNodelet $(arg nodelet_manager_name)" output="screen" required="true">
+        <rosparam command="load" file="$(arg config)"/>
+    </node>
+
+</launch>

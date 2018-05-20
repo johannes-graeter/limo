@@ -1,0 +1,9 @@
+<launch>
+
+  <arg name="config" default="$(find util_nodes_tf2_ros_tool)/launch/params/static_transform_alias_parameters.yaml" />
+
+  <node pkg="util_nodes_tf2_ros_tool" type="static_transform_alias" name="static_transform_alias" output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+  </node>
+
+</launch>

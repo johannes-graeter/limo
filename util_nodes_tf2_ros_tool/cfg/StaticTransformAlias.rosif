@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+"""
+Add your desired parameters here. All required headers will be generated from this.
+!!!IMPORTANT this file must be executable !!!
+
+Use one of these commands to add parameters to your parameter struct.
+
+ def add(self, name, paramtype, description, level=0, edit_method='""', default=None, min=None, max=None, configurable=False, global_scope=False, constant=False):
+        Adds parameters to your parameter struct.
+
+        - If no default value is given, you need to specify one in your launch file
+        - Global parameters, vectors, maps and constant params can not be configurable
+        - Global parameters, vectors and maps can not have a default, min or max value
+
+        :param self:
+        :param name: The Name of you new parameter
+        :param paramtype: The C++ type of this parameter. Can be any of ['std::string', 'int', 'bool', 'float', 'double'] or std::vector<...> or std::map<std::string, ...>
+        :param description: Choose an informative documentation string for this parameter.
+        :param level: (optional) Passed to dynamic_reconfigure
+        :param edit_method: (optional) Passed to dynamic_reconfigure
+        :param default: (optional) default value
+        :param min: (optional)
+        :param max: (optional)
+        :param configurable: (optional) Should this parameter be dynamic configurable
+        :param global_scope: (optional) If true, parameter is searched in global ('/') namespace instead of private ('~') ns
+        :param constant: (optional) If this is true, the parameter will not be fetched from param server, but the default value is kept.
+        :return: None
+
+ def add_enum(self, name, description, entry_strings, default=None):
+        Adds an enum to dynamic reconfigure
+        :param name: Name of enum parameter
+        :param description: Informative documentation string
+        :param entry_strings: Enum entries, must be strings! (will be numbered with increasing value)
+        :param default: Default value
+        :return:
+
+"""
+from rosinterface_handler.interface_generator_catkin import *
+
+gen = InterfaceGenerator()
+
+# ROS-specific
+gen.add("msg_queue_size", paramtype='int', description="Queusize for publisher", default=5, min=1)
+gen.add_verbosity_param(configurable=True)
+
+# Diagnostics 
+gen.add("diag_pub_msg_name", paramtype='std::string', description="Topicname for diagnostic publisher", default="out_topic_diagnosed") 
+gen.add("diagnostic_updater_name", paramtype='std::string', description="Name of diagnostic updater.", default="StaticTransformAliasUpdater") 
+gen.add("diagnostic_updater_hardware_id", paramtype='std::string', description="Identifier for hardware.", default="StaticTransformAlias") 
+gen.add("diagnostic_updater_rate", paramtype='double', description="Expected updater frequency", default=1) 
+gen.add("diagnostic_updater_rate_tolerance", paramtype='double', description="Tolerance with which bounds must be satisfied.", default=1) 
+ 
+# Your Params here
+gen.add("from_source_frame_id", paramtype='std::string', description="tf2 frame id of the source frame from which to read", default="from/source", configurable=True)
+gen.add("to_source_frame_id", paramtype='std::string', description="tf2 frame id of the source frame to which we map", default="to/source", configurable=True)
+
+gen.add("from_target_frame_id", paramtype='std::string', description="tf2 frame id of the target frame from which to read", default="from/target", configurable=True)
+gen.add("to_target_frame_id", paramtype='std::string', description="tf2 frame id of the target frame to which we map", default="to/target", configurable=True)
+
+gen.add("timeout", paramtype='double', description="time in secondsd before failing", default="10.", min=0.5, max=60, configurable=True)
+
+# DO NOT TOUCH THIS LINE
+#Syntax : Package, Node, Config Name(The final name will be StaticTransformAliasConfig)
+exit(gen.generate("util_nodes_tf2_ros_tool", "static_transform_alias", "StaticTransformAlias"))

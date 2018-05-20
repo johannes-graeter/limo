@@ -1,0 +1,6 @@
+<library path="lib/libstatic_transform_alias_nodelet">
+<class name="util_nodes_tf2_ros_tool/StaticTransformAliasNodelet"
+       type="util_nodes_tf2_ros_tool::StaticTransformAliasNodelet" base_class_type="nodelet::Nodelet">
+  <description></description>
+</class>
+</library>
