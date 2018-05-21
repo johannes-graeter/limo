@@ -11,6 +11,7 @@
   <exec_depend>keyframe_bundle_adjustment</exec_depend>
   <exec_depend>keyframe_bundle_adjustment_ros_tool</exec_depend>
   <exec_depend>util_nodes_tf2_ros_tool</exec_depend>
+  <exec_depend>matches_msg_types</exec_depend>
   <exec_depend></exec_depend>
   <export>
     <metapackage />

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>matches_msg_types</name>
+  <version>0.0.0</version>
+  <description>ToDo: Edit package description</description>
+
+  <license>contact-the-maintainer</license>
+  <maintainer email="johannes.graeter@kit.edu">Johannes Graeter</maintainer>
+  <author email="johannes.graeter@kit.edu">Johannes Graeter</author>
+  <url type="repository">https://gitlab.mrt.uni-karlsruhe.de/MRT/matches_msg_types.git</url>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>mrt_cmake_modules</build_depend>
+  <test_depend>gtest</test_depend>
+
+  <depend>eigen</depend>
+
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+  </export>
+</package>

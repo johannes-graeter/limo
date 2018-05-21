@@ -7,6 +7,7 @@
 //  and others
 
 #include "internal/landmark_selection_scheme_cheirality.hpp"
+#include <chrono>
 
 namespace keyframe_bundle_adjustment {
 
@@ -23,9 +24,8 @@ bool is_landmark_cheiral(const LandmarkSelectionSchemeBase::KeyframeMap& keyfram
     for (const auto& id_kf : keyframes) {
         const auto& kf = id_kf.second;
         if (kf->is_active_) {
-            const std::map<CameraId, Eigen::Vector3d> projected_lms_per_cam = kf->getProjectedLandmarkPosition(lm);
             // test cheirality for every projected landmark in cams
-            for (const auto& cam_lm : projected_lms_per_cam) {
+            for (const auto& cam_lm : kf->getProjectedLandmarkPosition(lm)) {
                 if (cam_lm.second.z() < 0.) {
                     return false;
                 }
@@ -41,6 +41,7 @@ std::set<LandmarkId> LandmarkSelectionSchemeCheirality::getSelection(
     const LandmarkSelectionSchemeBase::KeyframeMap& keyframes) const {
 
     std::set<LandmarkId> out;
+    auto start_time_cheriality = std::chrono::steady_clock::now();
 
     // transform landmarks into frames where they were observed
     // if all landmarks are in front of the camera, select landmark
@@ -49,6 +50,12 @@ std::set<LandmarkId> LandmarkSelectionSchemeCheirality::getSelection(
             out.insert(lm_el.first);
         }
     }
+
+    std::cout << "Duration cheirality check="
+              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                       start_time_cheriality)
+                     .count()
+              << " ms" << std::endl;
 
     return out;
 }

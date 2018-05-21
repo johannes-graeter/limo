@@ -139,6 +139,7 @@ public: // methods
                              double min_time_sec = 3.0,
                              double max_time_sec = 5.0);
 
+
     /**
      * @brief getKeyframe, const getter for keyframe at timestamp
      * @param timestamp, timestamp in seconds, if smaller 0., get latest timestamp
@@ -171,6 +172,12 @@ public: // methods
      * @return
      */
     std::map<LandmarkId, Landmark::ConstPtr> getSelectedLandmarkConstPtrs() const;
+
+    /**
+     * @brief adjust_pose_only, adjust keyframe without adding it to memory or overall bundle_adjustment.
+     * @param Keyframe to be adjusted.
+     */
+    std::string adjustPoseOnly(Keyframe&);
 
     /**
      * @brief evaluateResiduals, evaluate last ceres problem two times with and without loss to get
@@ -244,22 +251,42 @@ private:                                      // attributes
     double solver_time_sec;                   ///< solver time in seconds for ceres
 
 private: // methods
-         /**
-          * @brief deactivateParameters; deactivate parameters for the optimization, f.e. deactivate
-          * first pose as a parameter for mono or landmarks for motion only bundle adjustment
-          * @param vector with flags for deactivation
-          */
-    void deactivateParameters(const std::vector<OptimizationFlags>& = std::vector<OptimizationFlags>{});
+    /// //////////////////////////////////////////////
+    /// \brief deactivatePoseParameters
+    /// Set pose parameters constant for the optimization, f.e. deactivate first pose
+    /// paramters for mono (set={Keyframe::FixationStatus::Pose}) or do structure only.
+    ///
+    void deactivatePoseParameters(const std::set<Keyframe::FixationStatus>& flags);
+
+    /// //////////////////////////////////////////////
+    /// \brief activatePoseParameters
+    /// Set pose parameters variable for the optimization.
+    ///
+    void activatePoseParameters(const std::set<Keyframe::FixationStatus>& flags);
+
+    /// //////////////////////////////////////////////
+    /// \brief deactivateLandmarks
+    /// Set landmark parameters constant. Calling this results in motion only optimization.
+    ///
+    void deactivateLandmarks(double keyframe_fraction = 1.0, double landmark_fraction = 1.0);
+
+    /// /////////////////////////////////////////////
+    /// \brief activateLandmarks
+    /// Set parameters of landmarks non constant.
+    void activateLandmarks();
+
     /**
      * @brief setParameterization, set local parameterization for the problem
      */
-    void setParameterization();
+    void setParameterization(Keyframe& kf);
 
     /**
      * @brief addScaleRegularization, add regularization for scale
      * @param weight
      */
     void addScaleRegularization(double weight);
+
+    void addMotionRegularization(double weight);
 
     /**
      * @brief filterLandmarksById, fundtion to filter landmarks use in getSelectedLandmarks and
@@ -270,12 +297,20 @@ private: // methods
     std::map<LandmarkId, Landmark::ConstPtr> filterLandmarksById(const std::set<KeyframeId>& landmark_ids_) const;
 
     /**
-     * @brief addBlocksToProblem, add residual block and parameter blocks to problem
+     * @brief addKeyframeToProblem, add residual blocks and parameter blocks from one keyframe to problem
      */
-    std::tuple<ResidualIdMap, ResidualIdMap> addBlocksToProblem();
+    void addKeyframeToProblem(Keyframe& kf,
+                              ResidualIdMap& residual_block_ids_depth,
+                              ResidualIdMap& residual_block_ids_repr);
+    /**
+     * @brief addKeyframesToProblem, add residuals and parameters for all keyframes.
+     * @return
+     */
+    std::tuple<ResidualIdMap, ResidualIdMap> addKeyframesToProblem();
 
     /**
-     * @brief removeLandmarksByLoss, evaluate problems with loss and without loss and reject landmarks that have high
+     * @brief removeLandmarksByLoss, evaluate problems with loss and without loss and reject landmarks that have
+     * high
      * difference
      * @param quantile, qunatile to reject. 0.9 means highest 10% are rejected.
      */

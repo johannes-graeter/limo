@@ -145,12 +145,12 @@ public:
      * origin frame
      * @return projected landmarks for each of the cameras
      */
-    std::map<CameraId, Eigen::Vector3d> getProjectedLandmarkPosition(
-        const std::pair<LandmarkId, Landmark>& landmark_origin) const;
+    //    std::map<CameraId, Eigen::Vector3d> getProjectedLandmarkPosition(
+    //        const std::pair<LandmarkId, Landmark>& landmark_origin) const;
 
     ///@brief overload for pointers to landmarks
     std::map<CameraId, Eigen::Vector3d> getProjectedLandmarkPosition(
-        std::pair<LandmarkId, Landmark::ConstPtr> landmark_origin) const;
+        const std::pair<LandmarkId, Landmark::ConstPtr>& landmark_origin) const;
 
     /**
      * @brief getPose, copy keyframe pose to eigen transform

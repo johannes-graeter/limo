@@ -6,7 +6,7 @@
 #include <iostream>
 #include <Eigen/Eigen>
 #include <ceres/problem.h>
-#include "tracklets.hpp"
+#include <matches_msg_types/tracklets.hpp>
 
 namespace keyframe_bundle_adjustment {
 
@@ -151,13 +151,18 @@ TimestampNSec convert(const TimestampSec& ts) {
 }
 
 template <typename T>
-Eigen::Transform<T, 3, Eigen::Isometry> convert(const std::array<T, 7>& pose) {
+Eigen::Transform<T, 3, Eigen::Isometry> convert(const T* const pose) {
     // eigen quaternions are strange, there order is: x,y,z,w in map, in constructor it is w,x,y,z
     Eigen::Transform<T, 3, Eigen::Isometry> p = Eigen::Transform<T, 3, Eigen::Isometry>::Identity();
     p.translate(Eigen::Matrix<T, 3, 1>(pose[4], pose[5], pose[6]));
     p.rotate(Eigen::Quaternion<T>(pose[0], pose[1], pose[2], pose[3]));
 
     return p;
+}
+
+template <typename T>
+Eigen::Transform<T, 3, Eigen::Isometry> convert(const std::array<T, 7>& pose) {
+    return convert(pose.data());
 }
 }
 

@@ -76,32 +76,30 @@ void Keyframe::assignPose(const EigenPose& p) {
 }
 
 std::map<CameraId, Eigen::Vector3d> Keyframe::getProjectedLandmarkPosition(
-    const std::pair<LandmarkId, Landmark>& id_lm) const {
+    const std::pair<LandmarkId, Landmark::ConstPtr>& id_lm) const {
     auto it = measurements_.find(id_lm.first);
 
-    // lm_id was never observed in keyframe, return empty map
+    // In this case lm_id was never observed in keyframe, return empty map.
     if (it == measurements_.cend()) {
         return std::map<CameraId, Eigen::Vector3d>();
     }
 
-    // transform landmark into all camera frames
-    Eigen::Vector3d p_origin{id_lm.second.pos[0], id_lm.second.pos[1], id_lm.second.pos[2]};
+    // Get landmark in vehicle coords.
+    // Save copy by using Eigen::Map.
+    const Eigen::Vector3d& p_vehicle =
+        this->getEigenPose() * Eigen::Map<const Eigen::Vector3d>(id_lm.second->pos.data());
+
+    // Transform landmark into all camera frames.
     std::map<CameraId, Eigen::Vector3d> out;
     for (const auto& cam_meas : it->second) {
         const auto& cam_id = cam_meas.first;
-
-        Eigen::Vector3d p_cam = cameras_.at(cam_id)->getEigenPose() * this->getEigenPose() * p_origin;
-
+        Eigen::Vector3d p_cam = cameras_.at(cam_id)->getEigenPose() * p_vehicle;
         out[cam_id] = p_cam;
     }
 
     return out;
 }
 
-std::map<CameraId, Eigen::Vector3d> Keyframe::getProjectedLandmarkPosition(
-    std::pair<LandmarkId, Landmark::ConstPtr> landmark_origin) const {
-    return getProjectedLandmarkPosition(std::make_pair(landmark_origin.first, *(landmark_origin.second)));
-}
 
 Measurement& Keyframe::getMeasurement(LandmarkId lm_id, CameraId cam_id) {
     return measurements_.at(lm_id).at(cam_id);
@@ -124,11 +122,11 @@ std::map<CameraId, Measurement> Keyframe::getMeasurements(LandmarkId lm_id) cons
 
 bool Keyframe::hasMeasurement(const LandmarkId& lm_id, const CameraId& cam_id) const {
     auto it_lm = measurements_.find(lm_id);
-    if (it_lm != measurements_.end()) {
+    if (it_lm != measurements_.cend()) {
 
         auto it_cam = measurements_.at(lm_id).find(cam_id);
 
-        if (it_cam != measurements_.at(lm_id).end()) {
+        if (it_cam != measurements_.at(lm_id).cend()) {
             return true;
         }
     }

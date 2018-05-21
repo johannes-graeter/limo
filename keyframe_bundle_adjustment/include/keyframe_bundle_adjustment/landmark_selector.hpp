@@ -37,7 +37,8 @@ namespace keyframe_bundle_adjustment {
 *
 */
 class LandmarkSelector {
-public: // public classes/enums/types etc...
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 public: // attributes
 public: // public methods
     // default constructor

@@ -1,12 +1,12 @@
 <package format="2">
   <name>keyframe_bundle_adjustment_ros_tool</name>
   <version>0.0.0</version>
-  <description>Ros tool for keyframe_bundle_adjustment library.</description>
+  <description>ToDo: Edit package description</description>
 
-  <license>GPLv3</license>
-  <maintainer email="johannes.graeter@gmail.com">Johannes Graeter</maintainer>
-  <author email="johannes.graeter@gmail.com">Johannes Graeter</author>
-  <url type="repository">http://github.com/johannes-graeter/limo</url>
+  <license>contact-the-maintainer</license>
+  <maintainer email="johannes.graeter@kit.edu">Johannes Graeter</maintainer>
+  <author email="johannes.graeter@kit.edu">Johannes Graeter</author>
+  <url type="repository">https://gitlab.mrt.uni-karlsruhe.de/MRT/keyframe_bundle_adjustment_ros_tool.git</url>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mrt_cmake_modules</build_depend>
@@ -22,6 +22,7 @@
   <depend>nodelet</depend>
 
   <depend>keyframe_bundle_adjustment</depend>
+  <depend>viso_feature_tracking_ros_tool</depend>
 
   <depend>matches_msg_ros</depend>
   <depend>matches_msg_conversions_ros</depend>

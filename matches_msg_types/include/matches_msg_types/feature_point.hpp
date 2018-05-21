@@ -13,17 +13,17 @@ struct FeaturePoint {
         ;
     }
 
-    FeaturePoint(double u, double v) : u(u), v(v), d(-1) {
+    FeaturePoint(float u, float v) : u(u), v(v), d(-1) {
         ;
     }
 
-    FeaturePoint(double u, double v, double d) : u(u), v(v), d(d) {
+    FeaturePoint(float u, float v, float d) : u(u), v(v), d(d) {
             ;
         }
 
-    double u;
-    double v;
-    double d;
+    float u;
+    float v;
+    float d;
 
     Eigen::Vector2d toEigen2d() const {
         return Eigen::Vector2d(u, v);

@@ -64,7 +64,13 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
     getCategorizedSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const {
 
     auto start_calc_angles = std::chrono::steady_clock::now();
-    std::map<LandmarkId, double> map_data = landmark_helpers::calcMeanFlow(landmarks, keyframes);
+    // Convert to ids.
+    std::vector<LandmarkId> lm_ids;
+    lm_ids.reserve(landmarks.size());
+    for (const auto& el : landmarks) {
+        lm_ids.push_back(el.first);
+    }
+    std::map<LandmarkId, double> map_data = landmark_helpers::calcMeanFlow(lm_ids, keyframes);
     std::cout << "Duration lm_sel::scheme_obs::calc_angles="
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
                                                                        start_calc_angles)

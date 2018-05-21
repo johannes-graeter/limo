@@ -1,0 +1,50 @@
+#version=1.2
+variables:
+  GIT_STRATEGY: none
+# Cache build results between building and testing
+cache:
+  key: "$CI_COMMIT_SHA"
+  paths:
+  - catkin_ws/
+stages:
+  - build
+  - test
+  - deps
+
+# Prepare workspace and checkout the code. This will be executed before every stage
+before_script:
+  # Environment variablen setzen
+  - export SHELL="/bin/bash"
+  # Prepare workspace (in folder catkin_ws)
+  - sudo apt-get update
+  - mrt ci prepare $CI_PROJECT_NAME -c $CI_COMMIT_SHA
+  - cd catkin_ws
+  # add current branch name to branch management
+  - mrt ws branches add $CI_COMMIT_REF_NAME
+
+build:
+  stage: build
+  script:
+  # Build project and resolve deps at the same time in debug mode
+  - mrt catkin build -rd --debug --default_yes --no-status $CI_PROJECT_NAME
+ 
+test:
+  stage: test
+  script:
+  # Build code again, in case caching didn't work
+  - mrt catkin build -rd --debug --default_yes --no-status $CI_PROJECT_NAME
+  # Run tests
+  - source devel_debug/setup.bash
+  - mrt catkin run_tests --no-status $CI_PROJECT_NAME --no-deps
+  # Summarize results
+  - catkin_test_results --verbose build_debug/$CI_PROJECT_NAME
+
+deps:
+  stage: deps
+  only:
+  # only execute if this is the master branch
+  - master
+  script:
+  # test all dependencies of this package. Exclude packages with -e, include with -i.
+  - mrt ci test_deps -f --no-status --release $CI_PROJECT_NAME
+

@@ -140,9 +140,6 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
                                                                        start_time_pcl)
                      .count()
               << " ms" << std::endl;
-    // Add near landmarks labels.
-    // Calc flow.
-    auto map_flow = landmark_helpers::calcMeanFlow(lms, keyframes);
 
     // Convert from label to id.
     std::vector<LandmarkId> ids_near;
@@ -151,6 +148,10 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
         ids_near.push_back(lut.at(p.label));
     }
     std::cout << "num lms near=" << ids_near.size() << std::endl;
+
+    // Add near landmarks labels.
+    // Calc flow.
+    auto map_flow = landmark_helpers::calcMeanFlow(ids_near, keyframes);
 
     // Add to output.
     std::map<LandmarkId, LandmarkCategorizatonInterface::Category> out;
@@ -178,21 +179,21 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
         out[id] = LandmarkCategorizatonInterface::Category::FarField;
     }
 
-std::cout << "AFter voxelization: near="
-          << std::count_if(
-                 out.cbegin(),
-                 out.cend(),
-                 [](const auto& a) { return a.second == LandmarkCategorizatonInterface::Category::NearField; })
-          << " middle="
-          << std::count_if(
-                 out.cbegin(),
-                 out.cend(),
-                 [](const auto& a) { return a.second == LandmarkCategorizatonInterface::Category::MiddleField; })
-          << " far=" <<
-    std::count_if(out.cbegin(),
-                  out.cend(),
-                  [](const auto& a) { return a.second == LandmarkCategorizatonInterface::Category::FarField; })
-            << std::endl;
+    std::cout
+        << "AFter voxelization: near="
+        << std::count_if(out.cbegin(),
+                         out.cend(),
+                         [](const auto& a) { return a.second == LandmarkCategorizatonInterface::Category::NearField; })
+        << " middle=" << std::count_if(out.cbegin(),
+                                       out.cend(),
+                                       [](const auto& a) {
+                                           return a.second == LandmarkCategorizatonInterface::Category::MiddleField;
+                                       })
+        << " far="
+        << std::count_if(out.cbegin(),
+                         out.cend(),
+                         [](const auto& a) { return a.second == LandmarkCategorizatonInterface::Category::FarField; })
+        << std::endl;
 
 
     return out;

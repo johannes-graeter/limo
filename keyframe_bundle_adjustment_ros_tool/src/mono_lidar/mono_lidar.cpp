@@ -153,65 +153,21 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
         model.fx(), Eigen::Vector2d(model.cx(), model.cy()), trf_camera_vehicle);
 
     if (bundle_adjuster_->keyframes_.size() > 0) {
-        // get pose prior to current frame
-        auto last_kf = bundle_adjuster_->getKeyframe();
-
-        ros::Time last_ts_ros;
-        last_ts_ros.fromNSec(last_kf.timestamp_);
-
-        auto start_get_pose_prior = std::chrono::steady_clock::now();
-        Eigen::Affine3d pose_prior_cur_kf, pose_prior_kf_orig;
-        pose_prior_kf_orig = last_kf.getEigenPose();
-        ROS_DEBUG_STREAM("MonoLidar: Getting prior from tf...");
-        geometry_msgs::TransformStamped motion_cur_kf;
-        try {
-            motion_cur_kf = tf_buffer_.lookupTransform(interface_.prior_vehicle_frame,
-                                                       cur_ts_ros,
-                                                       interface_.prior_vehicle_frame,
-                                                       last_ts_ros,
-                                                       interface_.prior_global_frame,
-                                                       ros::Duration(interface_.tf_waiting_time));
-        } catch (const tf2::TransformException& e) {
-            ROS_WARN_STREAM(e.what());
-            ROS_WARN_STREAM("MonoLidar: interpolate old motion.");
-            Eigen::Affine3d cur_motion(motion_provider_->getMotion(cur_ts_ros.toNSec()));
-            motion_cur_kf = tf2::eigenToTransform(cur_motion);
-        }
-
-        ROS_DEBUG_STREAM("In MonoLidar: prior translation=" << motion_cur_kf.transform.translation.x << " "
-                                                            << motion_cur_kf.transform.translation.y
-                                                            << " "
-                                                            << motion_cur_kf.transform.translation.z);
-
-        //  Interpolate last scales and apply it to prior
-        //  Is that better than constant norm?
-        // Set current estimations to predict next scale by linear interpolation
-        motion_provider_->setLastKeyframePtrs(bundle_adjuster_->getActiveKeyframeConstPtrs());
-        //        Eigen::Vector3d transl = motion_provider_->applyScale(cur_ts_ros.toNSec(),
-        //                                                              Eigen::Vector3d(motion_cur_kf.transform.translation.x,
-        //                                                                              motion_cur_kf.transform.translation.y,
-        //                                                                              motion_cur_kf.transform.translation.z));
-        //        motion_cur_kf.transform.translation.x = transl[0];
-        //        motion_cur_kf.transform.translation.y = transl[1];
-        //        motion_cur_kf.transform.translation.z = transl[2];
-        //        ROS_DEBUG_STREAM("In MonoLidar: got scale=" << transl.norm());
-
-        tf2::doTransform(pose_prior_kf_orig, pose_prior_cur_kf, motion_cur_kf);
-        ROS_INFO_STREAM("In MonoLidar: Duration get pose prior from tf="
-                        << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                                 start_get_pose_prior)
-                               .count()
-                        << " ms");
-        ROS_DEBUG_STREAM("In MonoLidar: pose_prior for kf=\n" << pose_prior_cur_kf.matrix());
 
         Eigen::Isometry3d pose_prior_origin_keyframe;
-        pose_prior_origin_keyframe.translation() = pose_prior_cur_kf.translation();
-        pose_prior_origin_keyframe.linear() = pose_prior_cur_kf.rotation();
+        pose_prior_origin_keyframe.translation() = Eigen::Vector3d(1., 0., 0.);
+        pose_prior_origin_keyframe.linear() = Eigen::Matrix3d::Identity();
+        pose_prior_origin_keyframe = bundle_adjuster_->getKeyframe().getEigenPose() * pose_prior_origin_keyframe;
 
         // select keyframe
         auto start_time_select_kf = std::chrono::steady_clock::now();
         auto cur_frame = std::make_shared<keyframe_bundle_adjustment::Keyframe>(
             cur_ts_ros.toNSec(), tracklets, camera, pose_prior_origin_keyframe);
+
+        std::string summary_motion_only = bundle_adjuster_->adjustPoseOnly(*cur_frame);
+        std::cout << "---------------------------- motion only ------------------------" << std::endl;
+        std::cout << summary_motion_only << std::endl;
+        pose_prior_origin_keyframe = cur_frame->getEigenPose();
 
         std::cout << "----------------Deb kf ros: " << cur_ts_ros.toNSec() << " created=" << cur_frame->timestamp_
                   << std::endl;
@@ -422,25 +378,9 @@ void MonoLidar::reconfigureRequest(const ReconfigureConfig& config, uint32_t lev
     // Sparsify landmarks with voxelgrid
     // get parameters
     keyframe_bundle_adjustment::LandmarkSelectionSchemeVoxel::Parameters p;
-    //    p.max_num_landmarks_near = interface_.max_number_landmarks_near_bin;
-    //    p.max_num_landmarks_middle = interface_.max_number_landmarks_middle_bin;
-    //    p.max_num_landmarks_far = interface_.max_number_landmarks_far_bin;
-    p.max_num_landmarks_near = 700;
-    p.max_num_landmarks_middle = 300;
-    p.max_num_landmarks_far = 200;
-
-    p.grid_params_middle.max_x = 40;
-    p.grid_params_middle.min_x = -40;
-    p.grid_params_middle.max_y = 40;
-    p.grid_params_middle.min_y = -40;
-    p.grid_params_middle.num_bins_x = 80;
-    p.grid_params_middle.num_bins_y = 80;
-    p.grid_params_near = p.grid_params_middle;
-    p.grid_params_near.num_bins_x = p.grid_params_middle.num_bins_x * 2;
-    p.grid_params_near.num_bins_y = p.grid_params_middle.num_bins_y * 2;
-
-    p.roi_far_xyz = std::array<double, 3>{{80, 80, 80}};
-    p.roi_middle_xyz = std::array<double, 3>{{20, 20, 20}};
+    p.max_num_landmarks_near = interface_.max_number_landmarks_near_bin;
+    p.max_num_landmarks_middle = interface_.max_number_landmarks_middle_bin;
+    p.max_num_landmarks_far = interface_.max_number_landmarks_far_bin;
 
     bundle_adjuster_->landmark_selector_->addScheme(
         keyframe_bundle_adjustment::LandmarkSelectionSchemeVoxel::create(p));

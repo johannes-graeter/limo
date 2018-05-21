@@ -223,8 +223,13 @@ struct PoseRegularizationPose {
         trans1 << pose1[4], pose1[5], pose1[6];
         trans0 << pose0[4], pose0[5], pose0[6];
 
-        T res = (trans1 - trans0).norm();
-        residuals[0] = res - static_cast<T>(scale_);
+        T res = (trans1 - trans0).squaredNorm();
+        // Could be possible that sqaure root is instable near 0.
+        if (res < T(0.001)) {
+            residuals[0] = T(0.) - static_cast<T>(scale_);
+        } else {
+            residuals[0] = ceres::sqrt(res) - static_cast<T>(scale_);
+        }
 
         return true;
     }

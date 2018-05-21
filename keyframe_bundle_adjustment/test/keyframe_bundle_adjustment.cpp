@@ -31,21 +31,23 @@
 //}
 //
 // TEST(Math, Float) {
-//	  ASSERT_FLOAT_EQ((10.0f + 2.0f) * 3.0f, 10.0f * 3.0f + 2.0f * 3.0f)
+//	  ASSERT_FLOAT_EQ((10.0f + 2.0f) * 3.0f, 10.0f cpp:1411* 3.0f + 2.0f * 3.0f)
 //}
 //=======================================================================================================================================================
 //#include "bundler.hpp"
 #include "bundle_adjuster_keyframes.hpp"
 #include "gtest/gtest.h"
 #include "internal/cost_functors_ceres.hpp"
+#include "internal/indexed_histogram.hpp"
 #include "internal/local_parameterizations.hpp"
+#include "internal/motion_model_regularization.hpp"
 #include "internal/triangulator.hpp"
+#include "internal/voxel_grid.hpp"
 
+#include <fstream>
 #include <keyframe_selection_schemes.hpp>
 #include <keyframe_selector.hpp>
-
 #include <random>
-
 #include <Eigen/Eigen>
 
 TEST(Triangulator, process) {
@@ -129,12 +131,13 @@ TEST(CostFunctor, get_error_point_ray) {
     double observed_y = 160.;
 
     auto functor = keyframe_bundle_adjustment::cost_functors_ceres::ReprojectionErrorWithQuaternions(
-        observed_x, observed_y, focal_length, cu, cv, {1., 0., 0., 0., 0., 0.});
+        observed_x, observed_y, focal_length, cu, cv, {{1., 0., 0., 0., 0., 0.}});
 
     std::vector<double> pose{1., 0., 0., 0., 0., 0., 0.};
 
     std::vector<double> res(2);
     bool success = functor(pose.data(), point.data(), res.data());
+    ASSERT_EQ(success, true);
 
     ASSERT_NEAR(res[0], 0., 1e-5);
     ASSERT_NEAR(res[1], 0., 1e-5);
@@ -164,7 +167,7 @@ TEST(CostFunctor, get_error_point_ray) {
     Eigen::Vector3d proj = intrin * transformed_p;
     std::cout << proj.transpose() << std::endl;
     auto functor2 = keyframe_bundle_adjustment::cost_functors_ceres::ReprojectionErrorWithQuaternions(
-        proj[0], proj[1], focal_length, cu, cv, {1., 0., 0., 0., 0., 0., 0.});
+        proj[0], proj[1], focal_length, cu, cv, {{1., 0., 0., 0., 0., 0., 0.}});
 
     success = functor2(pose.data(), point.data(), res.data());
 
@@ -645,7 +648,7 @@ TEST(KeyframeSelector, process) {
     ASSERT_EQ((*selected_keyframes.begin())->timestamp_, ts1);
 }
 
-TEST(LandmarkSelector, select) {
+TEST(LandmarkSelector, base) {
     using namespace keyframe_bundle_adjustment;
 
 
@@ -668,7 +671,7 @@ TEST(LandmarkSelector, select) {
 
     Camera cam(600, {300, 200}, Eigen::Isometry3d::Identity());
     Camera::Ptr cam_ptr = std::make_shared<Camera>(cam);
-    auto ts = makeTracklets(poses, lms_origin, std::map<CameraId, Camera::Ptr>{{0, cam_ptr}});
+    auto ts = makeTrackletsDepth(poses, lms_origin, std::map<CameraId, Camera::Ptr>{{0, cam_ptr}});
 
     std::map<KeyframeId, Keyframe::ConstPtr> kf_const_ptrs;
     int count2 = 0;
@@ -856,7 +859,8 @@ namespace {
 void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_lms,
                                       std::tuple<double, double, double, double> noise_poses,
                                       double acceptance_thres,
-                                      std::vector<Eigen::Isometry3d> poses_cameras_keyframe) {
+                                      std::vector<Eigen::Isometry3d> poses_cameras_keyframe,
+                                      bool test_motion_only = false) {
     using namespace keyframe_bundle_adjustment;
     //    // define extrinsics
     //    std::map<keyframe_bundle_adjustment::KeyframeId, Eigen::Isometry3d> cam_ext;
@@ -926,7 +930,16 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
     //    BundleAdjusterKeyframes b(
     //        LandmarkSelectionSchemeRandom::createConst(std::numeric_limits<size_t>::max()));
 
+
     // add measurements to keyframes
+    int max_ind = int(stamps.size() - 1);
+
+    // motion only uses only last noisy pose and adjusts it.
+    if (test_motion_only) {
+        for (int i = 0; i < max_ind; ++i) {
+            noisy_poses.at(stamps.at(i)) = poses_gt.at(stamps.at(i));
+        }
+    }
     if (poses_cameras_keyframe.size() == 1) {
         // test mono interface
         Camera::Ptr camera = std::make_shared<Camera>(focal_length, principal_point, poses_cameras_keyframe[0]);
@@ -936,7 +949,7 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
         b.push(Keyframe(stamps.at(0), ts, camera, noisy_poses.at(stamps.at(0)), Keyframe::FixationStatus::Pose));
         b.push(Keyframe(stamps.at(1), ts, camera, noisy_poses.at(stamps.at(1)), Keyframe::FixationStatus::Scale));
 
-        for (int i = 2; i < int(stamps.size()); ++i) {
+        for (int i = 2; i < max_ind; ++i) {
             b.push(Keyframe(stamps.at(i), ts, camera, noisy_poses.at(stamps.at(i))));
         }
     } else {
@@ -953,7 +966,7 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
                         landmark_to_cameras,
                         noisy_poses.at(stamps.at(1)),
                         Keyframe::FixationStatus::Scale));
-        for (int i = 2; i < int(stamps.size()); ++i) {
+        for (int i = 2; i < max_ind; ++i) {
             b.push(Keyframe(stamps.at(i), ts, extrinsics_camera_kf, landmark_to_cameras, noisy_poses.at(stamps.at(i))));
         }
     }
@@ -965,11 +978,14 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
     }
 
 
-    // remember non optimized poses for later
-    std::vector<std::array<double, 7>> poses_before_bundling;
-    for (const auto& kf : b.keyframes_) {
-        poses_before_bundling.push_back(kf.second->pose_);
-    }
+    //    // remember non optimized poses for later
+    //    std::vector<std::array<double, 7>> poses_before_bundling;
+    //    for (const auto& kf : b.keyframes_) {
+    //        poses_before_bundling.push_back(kf.second->pose_);
+    //    }
+    //    if(test_motion_only){
+    //        poses
+    //    }
     // ////////////////////////////////////////////////////
     // test landmark selector
     //    std::vector<double> angles;
@@ -996,55 +1012,58 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
 
     // ////////////////////////////////////////////////////
     // test bundle adjuster
-    std::string summary = b.solve();
+    std::string summary;
+    if (test_motion_only) {
+        Keyframe kf;
+        if (poses_cameras_keyframe.size() == 1) {
+            Camera::Ptr camera = std::make_shared<Camera>(focal_length, principal_point, poses_cameras_keyframe[0]);
+            kf = Keyframe(stamps.back(), ts, camera, noisy_poses.at(stamps.back()));
+        } else {
+            kf = Keyframe(stamps.back(), ts, extrinsics_camera_kf, landmark_to_cameras, noisy_poses.at(stamps.back()));
+        }
+        summary = b.adjustPoseOnly(kf);
+        std::cout << "Optimization done" << std::endl;
+        std::cout << "pose= " << Eigen::Map<Eigen::Matrix<double, 1, 7>>(kf.pose_.data()) << std::endl;
+        ASSERT_EQ(kf.getEigenPose().isApprox(poses_gt.at(kf.timestamp_), acceptance_thres), true);
+        // Add for printing.
+        b.keyframes_[kf.timestamp_] = std::make_shared<Keyframe>(kf);
+    } else {
+        summary = b.solve();
+
+        // compare before and after optimization
+        auto poses_gt_iter = poses_gt.cbegin();
+        auto poses_iter = b.keyframes_.cbegin();
+        //    if (poses_gt.size() != b.keyframes_.size()) {
+        //        throw std::runtime_error("poses_gt.size()=" + std::to_string(poses_gt.size()) +
+        //                                 " != poses.size()=" +
+        //                                 std::to_string(b.keyframes_.size()));
+        //    }
+        for (; poses_gt_iter != poses_gt.cend() && poses_iter != b.keyframes_.cend(); ++poses_gt_iter, ++poses_iter) {
+            ASSERT_EQ(poses_iter->second->getEigenPose().isApprox(poses_gt_iter->second, acceptance_thres), true);
+        }
+    }
 
     std::cout << summary << std::endl;
-
-    //    std::cout << "before bundling:" << std::endl;
-    //    for (const auto& p : poses_before_bundling) {
-    //        std::cout << Eigen::Matrix<double, 1, 7>(p.data()) << std::endl;
-    //    }
-
-    //    // output
-    //    std::cout << "after bundling:" << std::endl;
-    //    for (const auto& kf : b.keyframes_) {
-    //        std::cout << Eigen::Matrix<double, 1, 7>(kf.second.pose.data()) << std::endl;
-    //    }
-    //    std::cout << "gt:" << std::endl;
-    //    for (const auto& pos : poses_gt) {
-    //        std::cout << Eigen::Matrix<double, 1, 7>(convert(pos.second).data()) << std::endl;
-    //    }
 
     // print stuff
     {
         std::cout << "before bundling | after bundling | gt" << std::endl;
-        auto poses_before_bundling_iter = poses_before_bundling.cbegin();
+        auto poses_before_bundling_iter = noisy_poses.cbegin();
         auto b_keyframes_iter = b.keyframes_.cbegin();
         auto poses_gt_iter = poses_gt.cbegin();
-        for (; poses_before_bundling_iter != poses_before_bundling.cend() && b_keyframes_iter != b.keyframes_.cend() &&
+        for (; poses_before_bundling_iter != noisy_poses.cend() && b_keyframes_iter != b.keyframes_.cend() &&
                poses_gt_iter != poses_gt.cend();
              ++poses_before_bundling_iter, ++b_keyframes_iter, ++poses_gt_iter) {
 
             auto converted_gt = convert(poses_gt_iter->second);
+            auto converted_before_bundling = convert(poses_before_bundling_iter->second);
             for (int i = 0; i < int(7); ++i) {
-                std::cout << (*poses_before_bundling_iter)[i] << "|" << b_keyframes_iter->second->pose_[i] << "|"
+                std::cout << converted_before_bundling[i] << "|" << b_keyframes_iter->second->pose_[i] << "|"
                           << converted_gt[i] << "\n";
             }
 
             std::cout << std::endl;
         }
-    }
-
-    // compare before and after optimization
-    auto poses_gt_iter = poses_gt.cbegin();
-    auto poses_iter = b.keyframes_.cbegin();
-    //    if (poses_gt.size() != b.keyframes_.size()) {
-    //        throw std::runtime_error("poses_gt.size()=" + std::to_string(poses_gt.size()) +
-    //                                 " != poses.size()=" +
-    //                                 std::to_string(b.keyframes_.size()));
-    //    }
-    for (; poses_gt_iter != poses_gt.cend() && poses_iter != b.keyframes_.cend(); ++poses_gt_iter, ++poses_iter) {
-        ASSERT_EQ(poses_iter->second->getEigenPose().isApprox(poses_gt_iter->second, acceptance_thres), true);
     }
 }
 }
@@ -1168,4 +1187,244 @@ TEST(LandmarkCreator, CreateWithDepth) {
 
         ASSERT_NEAR((lm_origin_eigen - lm_calc_eigen).norm(), 0., 0.01);
     }
+}
+
+TEST(CostFunctors, motion_regularization) {
+    using namespace keyframe_bundle_adjustment;
+
+    regularization::MotionModelRegularization cost_func;
+
+    // Yaw only
+    {
+        double yaw = 10. / 180. * M_PI;
+        double l = 1.;
+        double x = l / yaw * std::sin(yaw);
+        double y = l / yaw * (1 - std::cos(yaw));
+        //        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+        //                             Eigen::AngleAxisd(yaw / 2., Eigen::Vector3d::UnitX()));
+        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
+        std::array<double, 7> p0{{1., 0., 0., 0., 0., 0., 0.}};
+        std::array<double, 7> p1{{q.w(), q.x(), q.y(), q.z(), x, y, 0.}};
+
+
+        std::array<double, 1> res;
+        cost_func(p1.data(), p0.data(), res.data());
+
+        ASSERT_NEAR(res[0], 0., 1e-10);
+    }
+}
+TEST(IndexedHistogram, main) {
+    std::vector<double> data(50);
+    std::iota(data.begin(), data.end(), -10);
+    std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
+
+    int num_bins = 5;
+    IndexedHistogram hist(num_bins, -5, 30);
+    hist.addData([&data](const int& a) { return data[a]; }, data.size());
+
+    auto out = hist.get();
+    // One bin more for outliers at end.
+    ASSERT_EQ(out.size(), num_bins + 1);
+    for (const auto& el : out) {
+        std::cout << "bin=" << el.first << " els:\n";
+        for (const int& ind : el.second) {
+            std::cout << ind << " ";
+        }
+        std::cout << std::endl << "val:\n";
+        for (const auto& ind : el.second) {
+            ASSERT_LE(data[ind], el.first);
+            std::cout << data[ind] << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << "done" << std::endl;
+}
+
+TEST(VoxelGrid, polar) {
+    // Generate data
+
+    std::vector<std::array<double, 3>> lms_origin{
+        {{10., 3., 5.5}}, {{11., 1., 6.5}}, {{14., -5., 6.}}, {{9., 1., 5.}}, {{16., -1., 4.}}};
+
+    VoxelGridPolar grid;
+    grid.setData(std::make_shared<VoxelGridBase::Lms>(lms_origin));
+    {
+        auto out = grid.get();
+        std::cout << out << std::endl;
+        {
+            std::stringstream ss;
+            ss << "/tmp/debug_grid_inidices.txt";
+            std::ofstream file(ss.str().c_str());
+            file.precision(12);
+            file << out.printGrid().str();
+            file.close();
+        }
+        {
+            std::stringstream ss;
+            ss << "/tmp/debug_grid_points.txt";
+            std::ofstream file(ss.str().c_str());
+            file.precision(12);
+            for (const auto& el : lms_origin) {
+                file << el[0] << " " << el[1] << " " << el[2] << std::endl;
+            }
+            file.close();
+        }
+        for (const auto& el : out.data_) {
+            const double& a = el.first;
+            for (const auto& el2 : el.second) {
+                const auto& d = el2.first;
+                if (!el2.second.empty()) {
+                    std::cout << a << " " << d << std::endl;
+                    std::cout << d * std::cos(a) << " " << d * std::sin(a) << std::endl;
+                }
+            }
+        }
+        ASSERT_EQ(out.size(), lms_origin.size());
+        auto non_zero_els = out.getNonZeroElements();
+
+        ASSERT_EQ(non_zero_els[0].indices.size(), 1);
+        ASSERT_NEAR(non_zero_els[0].dim0, -0.174533, 1e-4);
+        ASSERT_NEAR(non_zero_els[0].dim1, 20.7812, 1e-4);
+        ASSERT_EQ(non_zero_els[0].indices[0], 2);
+        ASSERT_EQ(non_zero_els[1].indices.size(), 1);
+        ASSERT_NEAR(non_zero_els[1].dim0, 0., 1e-4);
+        ASSERT_NEAR(non_zero_els[1].dim1, 20.7812, 1e-4);
+        ASSERT_EQ(non_zero_els[1].indices[0], 4);
+        ASSERT_EQ(non_zero_els[2].indices.size(), 2);
+        ASSERT_NEAR(non_zero_els[2].dim0, 0.174533, 1e-4);
+        ASSERT_NEAR(non_zero_els[2].dim1, 13.1875, 1e-4);
+        ASSERT_EQ(non_zero_els[2].indices[0], 1);
+        ASSERT_EQ(non_zero_els[2].indices[1], 3);
+        ASSERT_EQ(non_zero_els[3].indices.size(), 1);
+        ASSERT_NEAR(non_zero_els[3].dim0, 0.349066, 1e-4);
+        ASSERT_NEAR(non_zero_els[3].dim1, 13.1875, 1e-4);
+        ASSERT_EQ(non_zero_els[3].indices[0], 0);
+    }
+
+    grid.sparsify();
+    {
+        auto out = grid.get();
+        {
+            std::stringstream ss;
+            ss << "/tmp/debug_sparsified_grid_indices.txt";
+            std::ofstream file(ss.str().c_str());
+            file.precision(12);
+            file << out.printGrid().str();
+            file.close();
+        }
+        std::cout << out << std::endl;
+        for (const auto& el : out.data_) {
+            const double& a = el.first;
+            for (const auto& el2 : el.second) {
+                const auto& d = el2.first;
+                if (!el2.second.empty()) {
+                    std::cout << a << " " << d << std::endl;
+                    std::cout << d * std::cos(a) << " " << d * std::sin(a) << std::endl;
+                }
+            }
+        }
+        ASSERT_EQ(out.size(), 4);
+    }
+}
+TEST(VoxelGrid, cartesian) {
+    // Generate data
+
+    std::vector<std::array<double, 3>> lms_origin{{{10., 3., 5.5}},
+                                                  {{11., 1., 6.5}},
+                                                  {{11., 1.3, 6.5}},
+                                                  {{14., -5., 6.}},
+                                                  {{9., 1., 5.}},
+                                                  {{9.7, 1., 5.}},
+                                                  {{16., -1., 4.}}};
+
+    VoxelGridCartesian::Parameters params;
+    params.max_x = 50.;
+    params.min_x = -50.;
+    params.num_bins_x = 100;
+    params.max_y = 50.;
+    params.min_y = -50.;
+    params.num_bins_y = 100;
+
+    VoxelGridCartesian grid;
+    grid.setParameters(params);
+    grid.setData(std::make_shared<VoxelGridBase::Lms>(lms_origin));
+
+    std::cout << grid.get() << std::endl;
+    ASSERT_EQ(grid.get().getNonZeroElements().size(), 5);
+    ASSERT_EQ(grid.getIndices().size(), 7);
+
+    grid.sparsify();
+
+    std::cout << grid.get() << std::endl;
+    ASSERT_EQ(grid.get().getNonZeroElements().size(), 5);
+    ASSERT_EQ(grid.getIndices().size(), 5);
+}
+
+TEST(LandmarkSelector, voxel) {
+    using namespace keyframe_bundle_adjustment;
+
+    // calc data on keyframes
+    std::vector<Eigen::Vector3d> lms_origin{Eigen::Vector3d(0.5, 3., 5.5),
+                                            Eigen::Vector3d(0., 100., 30.),
+                                            Eigen::Vector3d(1., -5., 4.),
+                                            Eigen::Vector3d(2.0, 1., 1.5),
+                                            Eigen::Vector3d(-2.0, -1., 10.),
+                                            Eigen::Vector3d(-1.95, -0.99, 10.1),
+                                            Eigen::Vector3d(0.5, 3.01, 5.52)};
+    std::map<LandmarkId, Landmark::ConstPtr> lms_arr_origin;
+    int count = 0;
+    for (const auto& el : lms_origin) {
+        lms_arr_origin[count] = std::make_shared<const Landmark>(el);
+        count++;
+    }
+
+    std::map<keyframe_bundle_adjustment::TimestampNSec, Eigen::Isometry3d> poses =
+        getPoses(0., std::make_tuple(0., 0., 0.), {0, 1, 2, 3, 4});
+
+
+    Camera cam(600, {300, 200}, Eigen::Isometry3d::Identity());
+    Camera::Ptr cam_ptr = std::make_shared<Camera>(cam);
+    auto ts = makeTrackletsDepth(poses, lms_origin, std::map<CameraId, Camera::Ptr>{{0, cam_ptr}});
+
+    std::map<KeyframeId, Keyframe::ConstPtr> kf_const_ptrs;
+    int count2 = 0;
+    for (const auto& el : poses) {
+        kf_const_ptrs[count2] = std::make_shared<const Keyframe>(Keyframe(count2, ts, cam_ptr, el.second));
+        count2++;
+    }
+    LandmarkSelector selector;
+
+    LandmarkSelectionSchemeVoxel::Parameters p;
+    p.max_num_landmarks_far = 50;
+    p.max_num_landmarks_middle = 50;
+    p.max_num_landmarks_near = 50;
+    p.roi_far_xyz = std::array<double, 3>{{30., 30., 30.}};
+    p.roi_middle_xyz = std::array<double, 3>{{10., 10., 10.}};
+
+    //        p.depth_params.min = 1.0;
+    //        p.depth_params.max = 30.0;
+    //        p.depth_params.bin_size = 0.7;
+    //        p.depth_params.bin_size_scale_factor = 1.1;
+    selector.addScheme(LandmarkSelectionSchemeVoxel::create(p));
+
+    auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
+
+    for (const auto& el : selected_lms) {
+        std::cout << el << std::endl;
+    }
+
+    // the behaviour of the radius rejection is strange.
+    // If we set number neighbours to 1 both lms are rejected.
+    // If we set 2 both remain.
+    ASSERT_EQ(selected_lms.size(), 5);
+
+    // test if categorizer interface works
+    ASSERT_EQ(selector.getLandmarkCategories().size(), 5);
+}
+
+TEST(BundleAdjusterKeyframes, adjustMotionOnly) {
+
+    evaluate_bundle_adjustment_depth(
+        std::make_tuple(0., 0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.001, {Eigen::Isometry3d::Identity()}, true);
 }

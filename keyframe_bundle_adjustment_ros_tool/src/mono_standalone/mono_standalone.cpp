@@ -13,9 +13,9 @@
 
 #include <matches_msg_conversions_ros/convert.hpp>
 
-#include <commons/color_by_index_hsv.hpp>
 #include <commons/general_helpers.hpp>
 #include <commons/publish_helpers.hpp>
+#include <commons/color_by_index_hsv.hpp>
 
 namespace keyframe_bundle_adjustment_ros_tool {
 
@@ -281,6 +281,7 @@ void MonoStandalone::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_
                                         .count()
                                  << " ms");
             }
+
             if (interface_.show_debug_image) {
                 cv::imshow("flow debug image keyframes", helpers::getFlowImg(bundle_adjuster_));
                 cv::waitKey(30);

@@ -5,6 +5,8 @@ Lidar-Monocular Visual Odometry
 
 * https://github.com/KIT-MRT/feature_tracking
 * https://github.com/KIT-MRT/viso2
+* https://github.com/KIT-MRT/rosinterface_handler
+* https://github.com/KIT-MRT/mrt_cmake_modules
 * https://github.com/johannes-graeter/mono_lidar_depth
 
 # Install

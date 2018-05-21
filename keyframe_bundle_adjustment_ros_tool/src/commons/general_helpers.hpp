@@ -10,7 +10,7 @@
 
 #include <cv.hpp>
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
-#include <keyframe_bundle_adjustment/matches_msg_types.hpp>
+#include <matches_msg_types/tracklets.hpp>
 
 #include "color_by_index_hsv.hpp"
 

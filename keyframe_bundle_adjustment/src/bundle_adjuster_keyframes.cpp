@@ -11,11 +11,13 @@
 #include <chrono>
 #include <exception>
 #include <fstream>
+#include <random>
 #include <sstream>
 #include <ceres/ceres.h>
 #include "internal/cost_functors_ceres.hpp"
 #include "internal/definitions.hpp"
 #include "internal/local_parameterizations.hpp"
+#include "internal/motion_model_regularization.hpp"
 
 #include "landmark_selection_schemes.hpp"
 
@@ -44,6 +46,17 @@ ceres::Solver::Options getSolverOptions(double solver_time_sec) {
     options.max_solver_time_in_seconds = solver_time_sec;
     options.minimizer_progress_to_stdout = true;
     //    options.update_state_every_iteration = true; // needed for callbacks
+    return options;
+}
+
+ceres::Solver::Options getSolverOptionsMotionOnly() {
+    ceres::Solver::Options options;
+    // how to choose solver http://ceres-solver.org/solving_faqs.html
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+    options.max_num_iterations = 30;
+    options.max_num_iterations = 4;
+    //    options.max_solver_time_in_seconds = 0.1 ;
+    options.minimizer_progress_to_stdout = true;
     return options;
 }
 
@@ -139,77 +152,131 @@ std::vector<BundleAdjusterKeyframes::PoseAndRay> BundleAdjusterKeyframes::getMea
     return out;
 }
 
-void BundleAdjusterKeyframes::setParameterization() {
+void BundleAdjusterKeyframes::setParameterization(Keyframe& kf) {
+    if (problem_->HasParameterBlock(kf.pose_.data()) && problem_->GetParameterization(kf.pose_.data()) == NULL) {
+        // add local parametrization to implement motion model if it pose was added as variable
+        // and
+        // parameterization was not set.
+        // -> less parameters while being able to use convenient x,y,z representation
+
+        // full 6 dofs
+        ceres::LocalParameterization* motion_parameterization;
+        // if keyframe is fixed no contraint is added -> return
+
+        if (kf.fixation_status_ == Keyframe::FixationStatus::Scale) {
+            double scale = std::sqrt(kf.pose_[4] * kf.pose_[4] + kf.pose_[5] * kf.pose_[5] + kf.pose_[6] * kf.pose_[6]);
+            // quaternion parameterization and const norm of translation
+            // this is suboptimal (one DOF too much), but works
+            motion_parameterization = new ceres::ProductParameterization(
+                new ceres::QuaternionParameterization(),
+                new ceres::AutoDiffLocalParameterization<local_parameterizations::FixScaleVectorPlus2, 3, 3>(
+                    new local_parameterizations::FixScaleVectorPlus2(scale)));
+
+            // quaternion parameterization and constant z to hold scale
+            // make z fix, suboptimal since cos dependant (if components value is too small it
+            // doesnt' have effect.)
+            //                motion_parameterization = new ceres::ProductParameterization(
+            //                    new ceres::QuaternionParameterization(),
+            //                    new ceres::SubsetParameterization(3,{2}));
+
+            //                motion_parameterization = new
+            //                ceres::AutoDiffLocalParameterization<
+            //                    local_parameterizations::FixScaleCircularMotionPlus,
+            //                    7,
+            //                    3>(new
+            //                    local_parameterizations::FixScaleCircularMotionPlus(scale));
+        } else {
+            // quaternion parameterization
+            motion_parameterization = new ceres::ProductParameterization(new ceres::QuaternionParameterization(),
+                                                                         new ceres::IdentityParameterization(3));
+            // this is the normal parameterization for circular movement
+            //                motion_parameterization = new
+            //                ceres::AutoDiffLocalParameterization<
+            //                    local_parameterizations::CircularMotionPlus,
+            //                    7,
+            //                    4>();
+        }
+
+        problem_->SetParameterization(kf.pose_.data(), motion_parameterization);
+    }
+}
+
+void BundleAdjusterKeyframes::deactivatePoseParameters(const std::set<Keyframe::FixationStatus>& flags) {
+    // set parameters constant if pose fixation status is flagged.
     for (const auto& id_kf : keyframes_) {
         auto& kf = *id_kf.second;
-        if (problem_->HasParameterBlock(kf.pose_.data()) && problem_->GetParameterization(kf.pose_.data()) == NULL) {
-            // add local parametrization to implement motion model if it pose was added as variable
-            // and
-            // parameterization was not set.
-            // -> less parameters while being able to use convenient x,y,z representation
-
-            // full 6 dofs
-            ceres::LocalParameterization* motion_parameterization;
-            // if keyframe is fixed no contraint is added -> return
-
-            if (kf.fixation_status_ == Keyframe::FixationStatus::Scale) {
-                double scale =
-                    std::sqrt(kf.pose_[4] * kf.pose_[4] + kf.pose_[5] * kf.pose_[5] + kf.pose_[6] * kf.pose_[6]);
-                // quaternion parameterization and const norm of translation
-                // this is suboptimal (one DOF too much), but works
-                motion_parameterization = new ceres::ProductParameterization(
-                    new ceres::QuaternionParameterization(),
-                    new ceres::AutoDiffLocalParameterization<local_parameterizations::FixScaleVectorPlus2, 3, 3>(
-                        new local_parameterizations::FixScaleVectorPlus2(scale)));
-
-                // quaternion parameterization and constant z to hold scale
-                // make z fix, suboptimal since cos dependant (if components value is too small it
-                // doesnt' have effect.)
-                //                motion_parameterization = new ceres::ProductParameterization(
-                //                    new ceres::QuaternionParameterization(),
-                //                    new ceres::SubsetParameterization(3,{2}));
-
-                //                motion_parameterization = new
-                //                ceres::AutoDiffLocalParameterization<
-                //                    local_parameterizations::FixScaleCircularMotionPlus,
-                //                    7,
-                //                    3>(new
-                //                    local_parameterizations::FixScaleCircularMotionPlus(scale));
-            } else {
-                // quaternion parameterization
-                motion_parameterization = new ceres::ProductParameterization(new ceres::QuaternionParameterization(),
-                                                                             new ceres::IdentityParameterization(3));
-                // this is the normal parameterization for circular movement
-                //                motion_parameterization = new
-                //                ceres::AutoDiffLocalParameterization<
-                //                    local_parameterizations::CircularMotionPlus,
-                //                    7,
-                //                    4>();
-            }
-
-            problem_->SetParameterization(kf.pose_.data(), motion_parameterization);
+        if (flags.find(kf.fixation_status_) != flags.cend() && problem_->HasParameterBlock(kf.pose_.data())) {
+            problem_->SetParameterBlockConstant(kf.pose_.data());
         }
     }
 }
 
-void BundleAdjusterKeyframes::deactivateParameters(
-    const std::vector<BundleAdjusterKeyframes::OptimizationFlags>& flags) {
-    // set parameters constant if pose is fixed
+void BundleAdjusterKeyframes::activatePoseParameters(const std::set<Keyframe::FixationStatus>& flags) {
     for (const auto& id_kf : keyframes_) {
         auto& kf = *id_kf.second;
-        if (kf.fixation_status_ == Keyframe::FixationStatus::Pose && problem_->HasParameterBlock(kf.pose_.data())) {
+        if (flags.find(kf.fixation_status_) != flags.cend() && problem_->HasParameterBlock(kf.pose_.data())) {
             problem_->SetParameterBlockConstant(kf.pose_.data());
         }
     }
+}
 
-    // deactivate landmark parameters for motion only bundle adjustment
-    for (const auto& f : flags) {
-        if (f == OptimizationFlags::MotionOnly) {
-            for (auto& lm : landmarks_) {
-                if (!problem_->IsParameterBlockConstant(lm.second->pos.data())) {
-                    problem_->SetParameterBlockConstant(lm.second->pos.data());
-                }
+void BundleAdjusterKeyframes::deactivateLandmarks(double keyframe_fraction, double landmark_fraction) {
+
+    std::set<LandmarkId> all_lm_ids_to_deactivate;
+    // Get all lm ids in lower part of keyframes (lower fraction*100. percent of the keyframes).
+    if (keyframe_fraction == 1.0) {
+        all_lm_ids_to_deactivate = active_landmark_ids_;
+    } else {
+        size_t max_ind =
+            static_cast<size_t>(std::floor(static_cast<double>(active_keyframe_ids_.size()) * keyframe_fraction));
+        auto it = active_keyframe_ids_.cbegin();
+        auto end_it = std::next(active_keyframe_ids_.cbegin(), max_ind);
+        for (; it != end_it; it++) {
+            const auto& kf_ptr = keyframes_.at(*it);
+            for (const auto& m : kf_ptr->measurements_) {
+                all_lm_ids_to_deactivate.insert(m.first);
             }
+        }
+    }
+
+    // Draw landmark_fraction*100. % of the lm_ids randomly to fix them.
+    std::set<LandmarkId> lm_ids_to_deactivate;
+    if (landmark_fraction == 1.0) {
+        lm_ids_to_deactivate = all_lm_ids_to_deactivate;
+    } else {
+        // Copy to vec so we do not have to access lm_ids in set.
+        std::vector<LandmarkId> all_lm_ids_to_deactivate_vec;
+        all_lm_ids_to_deactivate_vec.reserve(all_lm_ids_to_deactivate.size());
+        std::copy(all_lm_ids_to_deactivate.cbegin(),
+                  all_lm_ids_to_deactivate.cend(),
+                  std::back_inserter(all_lm_ids_to_deactivate_vec));
+        // Draw randomly.
+        std::default_random_engine generator;
+        std::uniform_int_distribution<size_t> distribution(0, all_lm_ids_to_deactivate_vec.size());
+        size_t num_lms = static_cast<size_t>(
+            std::floor(static_cast<double>(all_lm_ids_to_deactivate_vec.size()) * landmark_fraction));
+        for (size_t i = 0; i < num_lms; ++i) {
+            size_t rand_num = distribution(generator);
+            lm_ids_to_deactivate.insert(all_lm_ids_to_deactivate_vec[rand_num]);
+        }
+    }
+
+    // Deactivate landmark parameters for motion only bundle adjustment.
+    for (const auto& lm_id : lm_ids_to_deactivate) {
+        if (landmarks_.find(lm_id) != landmarks_.cend() && // can this be economized?
+            problem_->HasParameterBlock(landmarks_.at(lm_id)->pos.data()) &&
+            !problem_->IsParameterBlockConstant(landmarks_.at(lm_id)->pos.data())) {
+            problem_->SetParameterBlockConstant(landmarks_.at(lm_id)->pos.data());
+        }
+    }
+}
+
+void BundleAdjusterKeyframes::activateLandmarks() {
+    for (auto& lm_id : active_landmark_ids_) {
+        if (landmarks_.find(lm_id) != landmarks_.cend() &&
+            problem_->HasParameterBlock(landmarks_.at(lm_id)->pos.data()) &&
+            problem_->IsParameterBlockConstant(landmarks_.at(lm_id)->pos.data())) {
+            problem_->SetParameterBlockVariable(landmarks_.at(lm_id)->pos.data());
         }
     }
 }
@@ -238,7 +305,7 @@ void BundleAdjusterKeyframes::push(const Keyframe& kf) {
         auto it = landmarks_.find(m.first);
         // if no landmark was found: initialize new one by triangulation
         // else use existing landmark
-        if (it == landmarks_.end()) {
+        if (it == landmarks_.cend()) {
             // create new landmark with depth information if available, else triangulate it
             v3 p;
             bool has_depth = containsDepth(kf, m.first);
@@ -254,10 +321,13 @@ void BundleAdjusterKeyframes::push(const Keyframe& kf) {
             std::tie(it, was_inserted) =
                 landmarks_.insert(std::make_pair(m.first, std::make_shared<Landmark>(p, has_depth)));
             assert(was_inserted == true && "new calculated landmark couldn't be inserted");
-        }
 
-        // set triangulated landmark as active, may be deactivated
-        active_landmark_ids_.insert(m.first);
+            // set triangulated landmark as active, may be deactivated
+            active_landmark_ids_.insert(m.first);
+        } else {
+            // set triangulated landmark as active, may be deactivated
+            active_landmark_ids_.insert(m.first);
+        }
     }
     std::cout << "Duration push="
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
@@ -418,10 +488,8 @@ std::vector<Keyframe::Ptr> BundleAdjusterKeyframes::getSortedActiveKeyframePtrs(
     return kf_ptrs;
 }
 
-
 std::tuple<BundleAdjusterKeyframes::ResidualIdMap, BundleAdjusterKeyframes::ResidualIdMap> BundleAdjusterKeyframes::
-    addBlocksToProblem() {
-
+    addKeyframesToProblem() {
     // save residual block ids from depth
     // also used to determin if scale shall be fixed or not
     ResidualIdMap residual_block_ids_depth;
@@ -431,81 +499,83 @@ std::tuple<BundleAdjusterKeyframes::ResidualIdMap, BundleAdjusterKeyframes::Resi
     for (auto& id_kf : active_keyframe_ids_) {
         // rever to instance
         auto& kf = *keyframes_.at(id_kf);
-        //        // new problem so the residual ids are reset
-        //        kf.resetResidualIds();
+        addKeyframeToProblem(kf, residual_block_ids_depth, residual_block_ids_repr);
+    }
+    return std::make_tuple(residual_block_ids_depth, residual_block_ids_repr);
+}
+void BundleAdjusterKeyframes::addKeyframeToProblem(Keyframe& kf,
+                                                   BundleAdjusterKeyframes::ResidualIdMap& residual_block_ids_depth,
+                                                   BundleAdjusterKeyframes::ResidualIdMap& residual_block_ids_repr) {
+    // Add measruement constraints
+    for (const auto& m : kf.measurements_) {
+        // add to problem only if landmark is selected
+        if (selected_landmark_ids_.find(m.first) != selected_landmark_ids_.cend()) {
 
-        // Add measruement constraints
-        for (const auto& m : kf.measurements_) {
-            // add to problem only if landmark is selected
-            if (selected_landmark_ids_.find(m.first) != selected_landmark_ids_.cend()) {
+            for (const auto& cam_id_meas : m.second) {
+                // pointer to current camera
+                const Camera::Ptr& cam = kf.cameras_.at(cam_id_meas.first);
 
-                for (const auto& cam_id_meas : m.second) {
-                    // pointer to current camera
-                    const Camera::Ptr& cam = kf.cameras_.at(cam_id_meas.first);
+                // get extrinsics
+                Pose pose_camera_veh = cam->pose_camera_vehicle;
 
-                    // get extrinsics
-                    Pose pose_camera_veh = cam->pose_camera_vehicle;
-
-                    // add cost functor if has measured depth
-                    if (cam_id_meas.second.d > 0.) {
-                        // landmark depth is available as prior
-                        // add cost functor with landmark, measurement and pose to estimation
-                        // problem
-                        // Each residual block takes a point and a camera as input and outputs a
-                        // 1 dimensional residual.
-                        // Internally, the cost function stores the measured depth of the
-                        // landmark (distance between camera and landmark) and compares the
-                        // measured depth with the current depth.
-                        ceres::CostFunction* cost_functor_depth =
-                            cost_functors_ceres::LandmarkDepthError::Create(cam_id_meas.second.d, pose_camera_veh);
-
-                        // add residual block to problem for depth
-                        ceres::ResidualBlockId res_id_depth = problem_->AddResidualBlock(
-                            cost_functor_depth,
-                            new ceres::ScaledLoss(new ceres::CauchyLoss(outlier_rejection_options_.depth_thres),
-                                                  landmarks_.at(m.first)->weight,
-                                                  ceres::TAKE_OWNERSHIP),
-                            kf.pose_.data(),
-                            landmarks_.at(m.first)->pos.data());
-                        //                        // store residual id on keyframe for later
-                        //                        deactivation of residuals
-                        //                        residual_history_.assignResidualId(
-                        //                            m.first, res_id_depth, cam_id_meas.first);
-                        residual_block_ids_depth[res_id_depth] = std::make_pair(m.first, 1);
-                    }
-
-                    // landmark depth not available as prior; landmark has been triangulated
+                // add cost functor if has measured depth
+                if (cam_id_meas.second.d > 0.) {
+                    // landmark depth is available as prior
                     // add cost functor with landmark, measurement and pose to estimation
                     // problem
-                    // Each Residual block takes a point and a camera as input and outputs a 2
-                    // dimensional residual. Internally, the cost function stores the observed
-                    // image location and compares the reprojection against the observation.
-                    ceres::CostFunction* cost_functor_reprojection =
-                        cost_functors_ceres::ReprojectionErrorWithQuaternions::Create(cam_id_meas.second.u,
-                                                                                      cam_id_meas.second.v,
-                                                                                      cam->focal_length,
-                                                                                      cam->principal_point[0],
-                                                                                      cam->principal_point[1],
-                                                                                      pose_camera_veh);
-                    // add residual block to problem poses are stored on keyframe as
-                    // quaternion&translation landmarks are stored as Vector3d: Attention, Eigen
-                    // stores matrices columnmajor!
-                    // However here this is not a problem since we have only one column
-                    ceres::ResidualBlockId res_id_repr = problem_->AddResidualBlock(
-                        cost_functor_reprojection,
-                        new ceres::ScaledLoss(new ceres::CauchyLoss(outlier_rejection_options_.reprojection_thres),
+                    // Each residual block takes a point and a camera as input and outputs a
+                    // 1 dimensional residual.
+                    // Internally, the cost function stores the measured depth of the
+                    // landmark (distance between camera and landmark) and compares the
+                    // measured depth with the current depth.
+                    ceres::CostFunction* cost_functor_depth =
+                        cost_functors_ceres::LandmarkDepthError::Create(cam_id_meas.second.d, pose_camera_veh);
+
+                    // add residual block to problem for depth
+                    ceres::ResidualBlockId res_id_depth = problem_->AddResidualBlock(
+                        cost_functor_depth,
+                        new ceres::ScaledLoss(new ceres::CauchyLoss(outlier_rejection_options_.depth_thres),
                                               landmarks_.at(m.first)->weight,
                                               ceres::TAKE_OWNERSHIP),
                         kf.pose_.data(),
                         landmarks_.at(m.first)->pos.data());
-
-                    // store residual id on keyframe for later deactivation of residuals
-                    residual_block_ids_repr[res_id_repr] = std::make_pair(m.first, 2);
+                    //                        // store residual id on keyframe for later
+                    //                        deactivation of residuals
+                    //                        residual_history_.assignResidualId(
+                    //                            m.first, res_id_depth, cam_id_meas.first);
+                    residual_block_ids_depth[res_id_depth] = std::make_pair(m.first, 1);
                 }
+
+                // landmark depth not available as prior; landmark has been triangulated
+                // add cost functor with landmark, measurement and pose to estimation
+                // problem
+                // Each Residual block takes a point and a camera as input and outputs a 2
+                // dimensional residual. Internally, the cost function stores the observed
+                // image location and compares the reprojection against the observation.
+                ceres::CostFunction* cost_functor_reprojection =
+                    cost_functors_ceres::ReprojectionErrorWithQuaternions::Create(cam_id_meas.second.u,
+                                                                                  cam_id_meas.second.v,
+                                                                                  cam->focal_length,
+                                                                                  cam->principal_point[0],
+                                                                                  cam->principal_point[1],
+                                                                                  pose_camera_veh);
+                // add residual block to problem poses are stored on keyframe as
+                // quaternion&translation landmarks are stored as Vector3d: Attention, Eigen
+                // stores matrices columnmajor!
+                // However here this is not a problem since we have only one column
+                ceres::ResidualBlockId res_id_repr = problem_->AddResidualBlock(
+                    cost_functor_reprojection,
+                    new ceres::ScaledLoss(new ceres::CauchyLoss(outlier_rejection_options_.reprojection_thres),
+                                          landmarks_.at(m.first)->weight,
+                                          ceres::TAKE_OWNERSHIP),
+                    kf.pose_.data(),
+                    landmarks_.at(m.first)->pos.data());
+
+                // store residual id on keyframe for later deactivation of residuals
+                residual_block_ids_repr[res_id_repr] = std::make_pair(m.first, 2);
             }
         }
     }
-    return std::make_tuple(residual_block_ids_depth, residual_block_ids_repr);
 }
 
 namespace {
@@ -711,7 +781,7 @@ std::string BundleAdjusterKeyframes::solve() {
 
     // Add all residual block and parameters to ceres problem_.
     ResidualIdMap residual_block_ids_depth, residual_block_ids_repr;
-    std::tie(residual_block_ids_depth, residual_block_ids_repr) = addBlocksToProblem();
+    std::tie(residual_block_ids_depth, residual_block_ids_repr) = addKeyframesToProblem();
 
 
     // If scale was observed, don't fix scale but add regularization.
@@ -728,12 +798,32 @@ std::string BundleAdjusterKeyframes::solve() {
         std::cout << "KeyframeBundleAdjuster: regularization weight=" << regularization_loss_weight << std::endl;
         addScaleRegularization(regularization_loss_weight);
     }
+    // Add constraints for motion model.
+    //    addMotionRegularization(static_cast<double>(residual_block_ids_repr.size()) / 10000.);
 
     // Set local parametrizations.
-    setParameterization();
+    for (const auto& id_kf : keyframes_) {
+        setParameterization(*id_kf.second);
+    }
     // Deactivate optimization parameters, f.e. fixed poses or landmarks.
-    deactivateParameters();
+    deactivatePoseParameters({Keyframe::FixationStatus::Pose});
 
+    // In the first run we do motion only estimation.
+    // In that way we can adjust the prior.
+    // Perhaps deactivate all but first pose?
+    // Detect if full ba is needed by gradient of problem?
+    {
+        // Set landmark parameters constant.
+        deactivateLandmarks();
+
+        ceres::Solver::Summary summary_motion_only;
+        ceres::Solve(getSolverOptionsMotionOnly(), problem_.get(), &summary_motion_only);
+        summaries.push_back(summary_motion_only);
+
+        // Reactivate Landmarks to be able to do full ba.
+        activateLandmarks();
+    }
+    /*
     auto start_time_outlier = std::chrono::steady_clock::now();
     // Alternate optimization and outlier rejection by diff between residuals
     // and downweighted residuals. For now do it 2 times.
@@ -792,6 +882,62 @@ std::string BundleAdjusterKeyframes::solve() {
                                                                        start_time_outlier)
                      .count()
               << " ms" << std::endl;
+
+    // deactivate Landmarks in lower part of traejctory.
+    deactivateLandmarks(0.3, 0.8);
+    */
+    // Solve problem.
+    ceres::Solver::Summary summary;
+    ceres::Solve(getSolverOptions(solver_time_sec), problem_.get(), &summary);
+    summaries.push_back(summary);
+
+    return mergeSummaries(summaries);
+}
+
+void BundleAdjusterKeyframes::addMotionRegularization(double weight) {
+    if (active_keyframe_ids_.size() > 1) {
+        for (auto it0 = active_keyframe_ids_.cbegin(); it0 != std::prev(active_keyframe_ids_.cend()); it0++) {
+            auto it1 = std::next(it0);
+            ceres::CostFunction* cost_func = regularization::MotionModelRegularization::Create();
+            problem_->AddResidualBlock(cost_func,
+                                       new ceres::ScaledLoss(new ceres::TrivialLoss(), weight, ceres::TAKE_OWNERSHIP),
+                                       keyframes_.at(*it1)->pose_.data(),
+                                       keyframes_.at(*it0)->pose_.data());
+        }
+    }
+}
+
+std::string BundleAdjusterKeyframes::adjustPoseOnly(Keyframe& kf) {
+    // Add several summaries. For wach outlier rejection iteration one.
+    std::vector<ceres::Solver::Summary> summaries;
+
+    // Reinitialiaize to get rid of old landmarks.
+    ceres::Problem::Options options{};
+    options.enable_fast_removal = true;
+    problem_ = std::make_shared<ceres::Problem>(options);
+
+    auto active_landmarks = getActiveLandmarkConstPtrs();
+    auto active_keyframes = getActiveKeyframeConstPtrs();
+
+    selected_landmark_ids_ = landmark_selector_->select(active_landmarks, active_keyframes);
+
+    // Add all residual block and parameters to ceres problem_.
+    ResidualIdMap residual_block_ids_depth, residual_block_ids_repr;
+    addKeyframeToProblem(kf, residual_block_ids_depth, residual_block_ids_repr);
+
+    // If not enough depth measurements, fix scale.
+    if (residual_block_ids_depth.size() < 4) {
+        kf.fixation_status_ = Keyframe::FixationStatus::Scale;
+    }
+
+    // Set local parametrizations.
+    setParameterization(kf);
+
+    // Deactivate optimization parameters, f.e. fixed poses or landmarks.
+    deactivatePoseParameters({Keyframe::FixationStatus::Pose});
+
+    // Deactivate landmarks.
+    deactivateLandmarks();
 
     // Solve problem.
     ceres::Solver::Summary summary;

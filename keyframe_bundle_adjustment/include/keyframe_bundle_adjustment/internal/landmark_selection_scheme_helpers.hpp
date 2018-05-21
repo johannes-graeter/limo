@@ -47,17 +47,20 @@ void getMeasurementFromKf(iterator_type it,
     }
 }
 
-std::vector<LandmarkId> chooseNearLmIds(int max_num_lms,
+std::vector<LandmarkId> chooseNearLmIds(size_t max_num_lms,
                                         const std::vector<LandmarkId>& near_ids,
                                         const std::map<LandmarkId, double>& map_flow);
 
-std::vector<LandmarkId> chooseMiddleLmIds(int max_num, const std::vector<LandmarkId>& middle_ids);
+std::vector<LandmarkId> chooseMiddleLmIds(size_t max_num, const std::vector<LandmarkId>& middle_ids);
 
-std::vector<LandmarkId> chooseFarLmIds(int max_num,
+std::vector<LandmarkId> chooseFarLmIds(size_t max_num,
                                        const std::vector<LandmarkId>& ids_far,
                                        const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes);
 
-std::map<LandmarkId, double> calcMeanFlow(const std::map<LandmarkId, Landmark::ConstPtr>& landmarks,
+std::map<LandmarkId, double> calcMeanFlow(const std::vector<LandmarkId>& landmarks,
+                                          const std::vector<Keyframe::ConstPtr>& sorted_keyframes);
+
+std::map<LandmarkId, double> calcMeanFlow(const std::vector<LandmarkId>& landmarks,
                                           const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes);
 }
 }

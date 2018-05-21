@@ -1,7 +1,7 @@
 set(MRT_PKG_VERSION 2.2)
 # Modify only if you know what you are doing!
 cmake_minimum_required(VERSION 2.8.12)
-project(keyframe_bundle_adjustment)
+project(matches_msg_types)
 
 ###################
 ## find packages ##
@@ -45,10 +45,6 @@ file(GLOB PROJECT_SOURCE_FILES_SRC RELATIVE "${CMAKE_CURRENT_LIST_DIR}" "src/*.c
 if (PROJECT_SOURCE_FILES_SRC)
     set(LIBRARY_NAME ${PROJECT_NAME})
 endif()
-
-###################################
-## Eigen
-#add_definitions(-DEIGEN_DONT_VECTORIZE -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT)
 
 ###################################
 ## catkin specific configuration ##
