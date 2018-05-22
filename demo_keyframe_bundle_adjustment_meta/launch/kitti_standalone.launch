@@ -17,10 +17,10 @@
   </node>
 
   <!-- plot matches in image -->
-  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
+  <!--<include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
     <arg name="camera_name" value="left"/>
     <arg name="verbosity" value="info"/>
-  </include>
+  </include>-->
 
   <!--define aliases and static transforms-->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/tf2_static_aliases_kitti.launch">
