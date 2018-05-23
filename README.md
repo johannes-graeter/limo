@@ -55,18 +55,13 @@ Or:
     * <code>cd *your_catkin_workspace*/src</code>
     * <code>git clone https://github.com/johannes-graeter/limo.git</code>
 
-* clone dependencies 
-    * <code>cd *your_catkin_workspace*/src</code>
-    * <code>bash get_repos.sh</code>
+* clone dependencies and build repos
+    * <code>cd *your_catkin_workspace*/src/limo</code>
+    * <code>bash install_repos.sh</code>
 
 * unittests:
-    * uncomment **<test_depend>gtest</test_depend>** in package.xml of keyframe_bundle_adjustment to activate unittests
     * <code>cd *your_catkin_workspace*</code>
     * <code>catkin_make run_tests</code>
-
-* build it with catkin:
-    * <code>cd *your_catkin_workspace*</code>
-    * <code>catkin_make</code>
 
 * get test data from https://www.mrt.kit.edu/graeterweb/04.bag
     * this is a bag file generated from Kitti sequence 04 with added semantic labels.
