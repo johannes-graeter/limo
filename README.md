@@ -69,9 +69,8 @@ Or:
 * in different terminals
     * <code>roscore</code>
     * <code>rosbag play 04.bag -r 0.2 --pause</code>
-    * <code>
-       source *your_catkin_workspace*/devel/setup.sh
-       roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch</code>
+    * <code>source *your_catkin_workspace*/devel/setup.sh</code>
+      <code>roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch</code>
     * unpause rosbag (hit space in terminal)
     * rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz
  * watch limo trace the trajectory in rviz :)
