@@ -38,11 +38,12 @@
 #include "bundle_adjuster_keyframes.hpp"
 #include "gtest/gtest.h"
 #include "internal/cost_functors_ceres.hpp"
-#include "internal/indexed_histogram.hpp"
 #include "internal/local_parameterizations.hpp"
 #include "internal/motion_model_regularization.hpp"
 #include "internal/triangulator.hpp"
-#include "internal/voxel_grid.hpp"
+
+//#include "internal/indexed_histogram.hpp"
+//#include "internal/voxel_grid.hpp"
 
 #include <fstream>
 #include <keyframe_selection_schemes.hpp>
@@ -1213,7 +1214,7 @@ TEST(CostFunctors, motion_regularization) {
         ASSERT_NEAR(res[0], 0., 1e-10);
     }
 }
-TEST(IndexedHistogram, main) {
+/*TEST(IndexedHistogram, main) {
     std::vector<double> data(50);
     std::iota(data.begin(), data.end(), -10);
     std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
@@ -1422,7 +1423,7 @@ TEST(LandmarkSelector, voxel) {
     // test if categorizer interface works
     ASSERT_EQ(selector.getLandmarkCategories().size(), 5);
 }
-
+*/
 TEST(BundleAdjusterKeyframes, adjustMotionOnly) {
 
     evaluate_bundle_adjustment_depth(
