@@ -66,12 +66,25 @@ Or:
 * get test data from https://www.mrt.kit.edu/graeterweb/04.bag
     * this is a bag file generated from Kitti sequence 04 with added semantic labels.
     * there is more under the same address all named ??.bag (Todo)
+* in different terminals
+    * <code>roscore</code>
+    * <code>rosbag play 04.bag -r 0.2 --pause</code>
+    * <code>
+       source *your_catkin_workspace*/devel/setup.sh
+       roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch</code>
+    * unpause rosbag (hit space in terminal)
+    * rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz
+ * watch limo trace the trajectory in rviz :)
+
+### Todo
+* runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...)
+* add and try rocc landmark selection
 
 ### Try it out
 
 If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic, ceres, mrt_cmake_modules and limo).
 
-* Download it from [https://www.mrt.kit.edu/graeterweb/limo_core.ova](https://www.mrt.kit.edu/graeterweb/limo_core.ova).
+* download it from [https://www.mrt.kit.edu/graeterweb/limo_core.ova](https://www.mrt.kit.edu/graeterweb/limo_core.ova).
 * Find the library in ~/workspaces/limo/src/limo.
 * Check out the unittests for examples on simulated data.
 * Password for the vm-image is "1234".
