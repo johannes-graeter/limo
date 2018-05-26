@@ -30,19 +30,8 @@ In any case:
 
 * ceres: follow the instructions on [http://ceres-solver.org/installation.html](http://ceres-solver.org/installation.html)
 
-Either:
-
 * install ros https://wiki.ros.org/kinetic/Installation
-
-Or:
-
-* Eigen3: <code>sudo apt-get install libeigen3-dev</code>
-
-* catkin: follow the instructions on [http://wiki.ros.org/catkin](http://wiki.ros.org/catkin) or install ros
-
-* pcl: http://www.pointclouds.org/downloads/linux.html
-
-* googletest for unittests: <code>sudo apt-get install libgtest-dev</code>
+* install opencv_apps: <code>sudo apt-get install ros-kinetic-opencv-apps</code>
 
 ### Build
 
