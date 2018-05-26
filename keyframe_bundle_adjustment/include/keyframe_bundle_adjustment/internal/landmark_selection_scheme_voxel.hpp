@@ -25,11 +25,11 @@ public: // Public classes/enums/types etc...
         Parameters() {
             ;
         }
-        std::array<double, 3> voxel_size_xyz{1.0, 1.0, 0.5}; ///< Voxelsize in x,y,z in meters
-        std::array<double, 3> roi_far_xyz{
-            50., 50., 50.};              ///< Roi around current position in hwich points will be considered
-        std::array<double, 3> roi_middle_xyz{
-            25., 25., 25.};              ///< Roi around current position in hwich points will be considered
+        std::array<double, 3> voxel_size_xyz{{1.0, 1.0, 0.5}}; ///< Voxelsize in x,y,z in meters
+        std::array<double, 3> roi_far_xyz{{
+            50., 50., 50.}};              ///< Roi around current position in hwich points will be considered
+        std::array<double, 3> roi_middle_xyz{{
+            25., 25., 25.}};              ///< Roi around current position in hwich points will be considered
         unsigned int max_num_landmarks_near{300};   ///< maximum number of landmarks in near bin
         unsigned int max_num_landmarks_middle{300}; ///< maximum number of landmarks in middle bin
         unsigned int max_num_landmarks_far{300};    ///< maximum number of landmarks in far bin
