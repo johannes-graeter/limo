@@ -7,6 +7,7 @@ project(keyframe_bundle_adjustment)
 ## find packages ##
 ###################
 find_package(mrt_cmake_modules REQUIRED)
+set(MRT_ARCH "None")
 include(UseMrtStdCompilerFlags)
 include(UseMrtAutoTarget)
 
