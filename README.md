@@ -40,39 +40,49 @@ In any case:
 ### Build
 
 * initiate a catkin workspace:
-    1. ```shell cd *your_catkin_workspace*```
-    2. ```shell cd *your_catkin_workspace*/src```
-    3. ```shell catkin_init_workspace```
+    ```shell 
+    cd *your_catkin_workspace*
+    catkin init
+    ```
 
 * clone limo into src of workspace:
-    1. ```shell cd *your_catkin_workspace*/src```
-    2. ```shell git clone https://github.com/johannes-graeter/limo.git```
+    ```shell 
+    cd *your_catkin_workspace*/src
+    git clone https://github.com/johannes-graeter/limo.git
+    ```
 
 * clone dependencies and build repos
-    1. ```shell cd *your_catkin_workspace*/src/limo```
-    2. ```shell bash install_repos.sh```
+    ```shell 
+    cd *your_catkin_workspace*/src/limo
+    bash install_repos.sh
+    ```
 
 * unittests:
-    1. ```shell cd *your_catkin_workspace*```
-    2. ```shell catkin_make run_tests```
-
+    ```shell 
+    cd *your_catkin_workspace*
+    catkin_make run_tests
+    ```
+    
+### Run
 * get test data from [https://www.mrt.kit.edu/graeterweb/04.bag](https://www.mrt.kit.edu/graeterweb/04.bag)
     1. this is a bag file generated from Kitti sequence 04 with added semantic labels.
-    2. there is more under the same address all named ??.bag (00.bag)
+    2. there is more under the same address all named ??.bag (supported: 00.bag, 04.bag)
 
 * in different terminals
-    1. ```shell roscore```shell
-    2. ```shell rosbag play 04.bag -r 0.2 --pause```
-    3. ```shell source *your_catkin_workspace*/devel/setup.sh```
-      ```shell roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch```
+    1. `roscore`
+    2. `rosbag play 04.bag -r 0.1 --pause --clock`
+    3. ```shell
+       source *your_catkin_workspace*/devel/setup.sh
+       roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch
+       ```
     4. unpause rosbag (hit space in terminal)
-    5. rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz
+    5. `rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz`
 
 * watch limo trace the trajectory in rviz :)
 
 ### Todo
 
-* runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...)
+* runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
 * add and try rocc landmark selection
 
 ### Try it out
@@ -80,6 +90,7 @@ In any case:
 If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic, ceres, mrt_cmake_modules and limo).
 
 * download it from [https://www.mrt.kit.edu/graeterweb/limo_core.ova](https://www.mrt.kit.edu/graeterweb/limo_core.ova).
-* Find the library in ~/workspaces/limo/src/limo.
-* Check out the unittests for examples on simulated data.
 * Password for the vm-image is "1234".
+* Find all modules in ~/workspaces/limo/ .
+* Run example (~/04.bag) it as described above.
+* Note that the runtime in the virtual machine is slower than on a normal system.
