@@ -61,7 +61,7 @@ In any case:
 * unittests:
     ```shell 
     cd *your_catkin_workspace*
-    catkin_make run_tests
+    catkin run_tests --profile limo_release
     ```
     
 ### Run
@@ -85,13 +85,14 @@ In any case:
 
 * runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
 * add and try rocc landmark selection
+* for less packages and better runtime we do not use external priors from liviodo as in Kitti, but internal priors and one motion only-adjustment in between keyframes. However results are slightly worse than on Kitti. Tune so that is not the case.
 
 ### Try it out
 
-If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic, ceres, mrt_cmake_modules and limo).
+If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic and all dependencies for limo).
 
-* download it from [https://www.mrt.kit.edu/graeterweb/limo_core.ova](https://www.mrt.kit.edu/graeterweb/limo_core.ova).
+* download it from [https://www.mrt.kit.edu/graeterweb/limo_full.ova](https://www.mrt.kit.edu/graeterweb/limo_full.ova).
 * Password for the vm-image is "1234".
 * Find all modules in ~/workspaces/limo/ .
-* Run example (~/04.bag) it as described above.
+* Run example (~/04.bag) as described above.
 * Note that the runtime in the virtual machine is slower than on a normal system.
