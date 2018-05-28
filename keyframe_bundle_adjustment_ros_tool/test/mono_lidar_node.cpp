@@ -44,35 +44,6 @@
 // - it takes time until a node responds to your messages
 // - utils_testing_ros provides functionality to make your testing life easier
 
-TEST(keyframe_bundle_adjustment_ros_tool, ScaleProvider) {
-    using namespace keyframe_bundle_adjustment;
-    keyframe_bundle_adjustment_ros_tool::MotionExtrapolator p;
-    std::map<KeyframeId, Keyframe::ConstPtr> kfs;
-    KeyframeId id = 0;
-    for (double timestamp = 0.; timestamp < 3.; timestamp += 0.1) {
-        Keyframe k{};
-        k.timestamp_ = convert(timestamp);
-        k.pose_[0] = 1.;
-        k.pose_[1] = 0.;
-        k.pose_[2] = 0.;
-        k.pose_[3] = 0.;
-        k.pose_[4] = 0.1;
-        k.pose_[5] = -0.1;
-        k.pose_[6] = 5. * timestamp;
-
-        kfs[id] = std::make_shared<const Keyframe>(k);
-        id++;
-    }
-
-    p.setLastKeyframePtrs(kfs);
-
-    ASSERT_EQ(p.getLastKfs().size(), p.interpolation_size_);
-
-    double scale = p.getScale(convert(3.2));
-
-    ASSERT_NEAR(scale, 1.5, 0.00001);
-}
-
 
 int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);

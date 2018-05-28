@@ -22,9 +22,6 @@
 
 namespace keyframe_bundle_adjustment_ros_tool {
 
-// Forward declaration of scale provider;
-class MotionExtrapolator;
-
 class MonoLidar {
 
     using Interface = MonoLidarInterface;
@@ -90,9 +87,7 @@ private:
 
     Eigen::Isometry3d trf_camera_vehicle; ///< extrinsic calibraion of camera defined from vechicle
                                           /// frame to camera frame
-    std::shared_ptr<MotionExtrapolator>
-        motion_provider_;          ///< Class for calculate scale from previous estimation shared,
-                                   /// since uqine has a problem with forward declarations
+                                          
     ros::Time last_ts_solved_{0.0}; ///< Last timestamp when bundle_adjuster_.solve was called
 };
 } // namespace keyframe_bundle_adjustment_ros_tool

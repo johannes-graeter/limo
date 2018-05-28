@@ -6,7 +6,6 @@
 #include <image_geometry/pinhole_camera_model.h>
 
 #include <commons/general_helpers.hpp>
-#include <commons/motion_extrapolator.hpp>
 #include <commons/publish_helpers.hpp>
 
 #include <yaml-cpp/yaml.h>
@@ -68,10 +67,6 @@ MonoLidar::MonoLidar(ros::NodeHandle nh_public, ros::NodeHandle nh_private)
         trf_camera_vehicle = Eigen::Isometry3d::Identity();
     }
     ROS_DEBUG_STREAM("MonoLidar: Transform from vehicle to camera frame=\n" << trf_camera_vehicle.matrix());
-
-    // Init pimpl for scale provider.
-    motion_provider_ = std::make_shared<MotionExtrapolator>();
-
 
     rosinterface_handler::showNodeInfo();
 }
