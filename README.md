@@ -24,6 +24,7 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
 ## Note
 
 This is work in progress, detailed install instructions and examples will follow.
+Here in this repo we use a version with built in prior estimation since it is faster and less modules are required, however results are slightly worse than in kitti version up to now.
 
 ## Installation
 
