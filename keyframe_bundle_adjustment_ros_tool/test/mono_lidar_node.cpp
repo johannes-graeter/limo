@@ -26,7 +26,6 @@
 // doesn't exceed the given absolute error
 //=======================================================================================================================================================
 
-#include <commons/motion_extrapolator.hpp>
 #include <ros/ros.h>
 #include "gtest/gtest.h"
 
