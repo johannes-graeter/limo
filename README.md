@@ -1,11 +1,14 @@
 # limo
+
 Lidar-Monocular Visual Odometry.
 This library is designed to be an open platform for visual odometry algortihm development.
 We focus explicitely on the simple integration of the following key methodologies:
+
 * Keyframe selection
 * Landmark selection
 * Prior estimation
 * Depth integration from different sensors.
+
 The core library keyframe_bundle_adjustment is a backend that should faciliate to swap these modules and easily develop those algorithms.
 
 * It is supposed to be an add-on module to do temporal inference of the optimization graph in order to smooth the result
@@ -29,42 +32,46 @@ This is work in progress, detailed install instructions and examples will follow
 In any case:
 
 * ceres: follow the instructions on [http://ceres-solver.org/installation.html](http://ceres-solver.org/installation.html)
-
+* png++: ```shell sudo apt-get install libpng++-dev```
 * install ros https://wiki.ros.org/kinetic/Installation
-* install opencv_apps: <code>sudo apt-get install ros-kinetic-opencv-apps</code>
+* install catkin_tools: ```shell sudo apt-get install python-catkin-tools```
+* install opencv_apps: ```shell sudo apt-get install ros-kinetic-opencv-apps```
 
 ### Build
 
 * initiate a catkin workspace:
-    * <code>cd *your_catkin_workspace*</code>
-    * <code>cd *your_catkin_workspace*/src</code>
-    * <code>catkin_init_workspace</code>
+    1. ```shell cd *your_catkin_workspace*```
+    2. ```shell cd *your_catkin_workspace*/src```
+    3. ```shell catkin_init_workspace```
 
 * clone limo into src of workspace:
-    * <code>cd *your_catkin_workspace*/src</code>
-    * <code>git clone https://github.com/johannes-graeter/limo.git</code>
+    1. ```shell cd *your_catkin_workspace*/src```
+    2. ```shell git clone https://github.com/johannes-graeter/limo.git```
 
 * clone dependencies and build repos
-    * <code>cd *your_catkin_workspace*/src/limo</code>
-    * <code>bash install_repos.sh</code>
+    1. ```shell cd *your_catkin_workspace*/src/limo```
+    2. ```shell bash install_repos.sh```
 
 * unittests:
-    * <code>cd *your_catkin_workspace*</code>
-    * <code>catkin_make run_tests</code>
+    1. ```shell cd *your_catkin_workspace*```
+    2. ```shell catkin_make run_tests```
 
-* get test data from https://www.mrt.kit.edu/graeterweb/04.bag
-    * this is a bag file generated from Kitti sequence 04 with added semantic labels.
-    * there is more under the same address all named ??.bag (Todo)
+* get test data from [https://www.mrt.kit.edu/graeterweb/04.bag](https://www.mrt.kit.edu/graeterweb/04.bag)
+    1. this is a bag file generated from Kitti sequence 04 with added semantic labels.
+    2. there is more under the same address all named ??.bag (00.bag)
+
 * in different terminals
-    * <code>roscore</code>
-    * <code>rosbag play 04.bag -r 0.2 --pause</code>
-    * <code>source *your_catkin_workspace*/devel/setup.sh</code>
-      <code>roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch</code>
-    * unpause rosbag (hit space in terminal)
-    * rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz
- * watch limo trace the trajectory in rviz :)
+    1. ```shell roscore```shell
+    2. ```shell rosbag play 04.bag -r 0.2 --pause```
+    3. ```shell source *your_catkin_workspace*/devel/setup.sh```
+      ```shell roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch```
+    4. unpause rosbag (hit space in terminal)
+    5. rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz
+
+* watch limo trace the trajectory in rviz :)
 
 ### Todo
+
 * runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...)
 * add and try rocc landmark selection
 
