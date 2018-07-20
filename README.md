@@ -26,6 +26,25 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
 This is work in progress, detailed install instructions and examples will follow.
 Here in this repo we use a version with built in prior estimation since it is faster and less modules are required, however results are slightly worse than in kitti version up to now.
 
+## Details
+This work was accepted on IROS 2018.
+See https://arxiv.org/pdf/1807.07524.pdf .
+Until publication in proceedings of IROS, cite arxiv article
+
+@ARTICLE{2018arXiv180707524G,
+   author = {{Graeter}, J. and {Wilczynski}, A. and {Lauer}, M.},
+    title = "{LIMO: Lidar-Monocular Visual Odometry}",
+  journal = {ArXiv e-prints},
+archivePrefix = "arXiv",
+   eprint = {1807.07524},
+ primaryClass = "cs.RO",
+ keywords = {Computer Science - Robotics, Electrical Engineering and Systems Science - Image and Video Processing},
+     year = 2018,
+    month = jul,
+   adsurl = {http://adsabs.harvard.edu/abs/2018arXiv180707524G},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
 ## Installation
 
 ### Requirements
