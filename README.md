@@ -52,10 +52,23 @@ archivePrefix = "arXiv",
 In any case:
 
 * ceres: follow the instructions on [http://ceres-solver.org/installation.html](http://ceres-solver.org/installation.html)
-* png++: ```shell sudo apt-get install libpng++-dev```
-* install ros https://wiki.ros.org/kinetic/Installation
-* install catkin_tools: ```shell sudo apt-get install python-catkin-tools```
-* install opencv_apps: ```shell sudo apt-get install ros-kinetic-opencv-apps```
+* png++: 
+```shell
+ sudo apt-get install libpng++-dev
+ ```
+* install ros (Full version): https://wiki.ros.org/kinetic/Installation
+* install catkin_tools: 
+```shell 
+sudo apt-get install python-catkin-tools
+ ```
+* install opencv_apps: 
+```shell
+sudo apt-get install ros-kinetic-opencv-apps
+```
+* install git: 
+```shell
+sudo apt-get install git
+```
 
 ### Build
 
@@ -67,6 +80,7 @@ In any case:
 
 * clone limo into src of workspace:
     ```shell 
+    mkdir *your_catkin_workspace*/src
     cd *your_catkin_workspace*/src
     git clone https://github.com/johannes-graeter/limo.git
     ```
@@ -86,7 +100,7 @@ In any case:
 ### Run
 * get test data from [https://www.mrt.kit.edu/graeterweb/04.bag](https://www.mrt.kit.edu/graeterweb/04.bag)
     1. this is a bag file generated from Kitti sequence 04 with added semantic labels.
-    2. there is more under the same address all named ??.bag (supported: 00.bag, 04.bag)
+    2. there is more under the same address all named ??.bag (supported: 00.bag, 01.bag, 04.bag)
 
 * in different terminals
     1. `roscore`
