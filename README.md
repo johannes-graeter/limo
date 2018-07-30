@@ -51,12 +51,18 @@ archivePrefix = "arXiv",
 
 In any case:
 
-* ceres: follow the instructions on [http://ceres-solver.org/installation.html](http://ceres-solver.org/installation.html)
+* ceres: 
+  - follow the instructions on [http://ceres-solver.org/installation.html](http://ceres-solver.org/installation.html)
+  - you will need ```sudo make install``` to install the headers.
+  - tested with libsuitesparse-dev from standard repos.
 * png++: 
 ```shell
  sudo apt-get install libpng++-dev
  ```
-* install ros (Full version): https://wiki.ros.org/kinetic/Installation
+* install ros: 
+  - follow the instructions on [https://wiki.ros.org/kinetic/Installation](https://wiki.ros.org/kinetic/Installation).
+  - you will need to install ros-full (for pcl).
+  - don't forget to source your ~/.bashrc afterwards.
 * install catkin_tools: 
 ```shell 
 sudo apt-get install python-catkin-tools
@@ -74,26 +80,26 @@ sudo apt-get install git
 
 * initiate a catkin workspace:
     ```shell 
-    cd *your_catkin_workspace*
+    cd ${your_catkin_workspace}
     catkin init
     ```
 
 * clone limo into src of workspace:
     ```shell 
-    mkdir *your_catkin_workspace*/src
-    cd *your_catkin_workspace*/src
+    mkdir ${your_catkin_workspace}/src
+    cd ${your_catkin_workspace}/src
     git clone https://github.com/johannes-graeter/limo.git
     ```
 
 * clone dependencies and build repos
     ```shell 
-    cd *your_catkin_workspace*/src/limo
+    cd ${your_catkin_workspace}/src/limo
     bash install_repos.sh
     ```
 
 * unittests:
     ```shell 
-    cd *your_catkin_workspace*
+    cd ${your_catkin_workspace}
     catkin run_tests --profile limo_release
     ```
     
@@ -106,11 +112,11 @@ sudo apt-get install git
     1. `roscore`
     2. `rosbag play 04.bag -r 0.1 --pause --clock`
     3. ```shell
-       source *your_catkin_workspace*/devel/setup.sh
+       source ${your_catkin_workspace}/devel/setup.sh
        roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch
        ```
     4. unpause rosbag (hit space in terminal)
-    5. `rviz *your_catkin_workspace*/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz`
+    5. `rviz ${your_catkin_workspace}/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz`
 
 * watch limo trace the trajectory in rviz :)
 
