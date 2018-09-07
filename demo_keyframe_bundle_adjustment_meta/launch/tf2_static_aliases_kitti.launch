@@ -23,7 +23,6 @@
    <param name="to_source_frame_id" value="$(arg tf_namespace_alias)/sensor/camera/grayscale/right"/> 
 </node>
 
-<!--define reference system, shall be defined in config_momo_kitti as well, args:x, y, z, yaw(rot about Z), pitch(rot about Y), roll(rot about X), parent_id, child_id; angles in rad-->
 <!--x,y,z are distances from rear_axis to left camera from the kitti homepage http://www.cvlibs.net/datasets/kitti/setup.php -->
 <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="transform_vehicle_left_camera" args="1.08 0 1.35 -1.5707963 0 -1.5707963 $(arg tf_namespace_alias)vehicle $(arg tf_namespace_alias)sensor/camera" required="true"/> -->
 <!-- transform is defined such as a point p can be transformed as p_a=trf_a_b*p_b (more in README.md) -->

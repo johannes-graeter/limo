@@ -1,8 +1,12 @@
 <launch>
   <arg name="camera_name" default="left" />
-    
+  <arg name="start_nodelet_manager" default="true"/>
+  <arg name="nodelet_manager_name" default="feature_matching_nodelet_manager"/>
+
+  <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" output="screen" args="manager" if="$(arg start_nodelet_manager)"/>
+  
   <!--gamma correction-->
-  <node pkg="image_preproc_ros_tool" type="gamma_correction" name="gamma_correction_node_$(arg camera_name)" output="log">
+  <node pkg="nodelet" type="nodelet" name="gamma_correction_nodelet_$(arg camera_name)" args="load image_preproc_ros_tool/GammaCorrectionNodelet $(arg nodelet_manager_name)" output="log">
     <remap from="src/image" to="/sensor/camera/grayscale/$(arg camera_name)/image_rect" />
     <remap from="tgt/image" to="/sensor/camera/grayscale/$(arg camera_name)/image_rect_g" />
     <param name="gamma" value="1.2" />
@@ -10,7 +14,7 @@
   </node>
 
   <!-- feature tracking node -->
-  <node pkg="viso_feature_tracking_ros_tool" type="viso_feature_tracking_node" name="viso_feature_tracking_node_$(arg camera_name)" output="screen">
+  <node pkg="nodelet" type="nodelet" name="viso_feature_tracking_nodelet_$(arg camera_name)" args="load viso_feature_tracking_ros_tool/VisoFeatureTrackingNodelet $(arg nodelet_manager_name)" output="screen">
     <param name="verbosity" value="info" />
     <param name="config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/config_feature_matching.yaml" />
     <remap from="tgt/matches" to="/matches/grayscale/$(arg camera_name)"/>

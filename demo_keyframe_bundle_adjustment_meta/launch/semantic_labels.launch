@@ -1,6 +1,15 @@
 <!-- Here the node is launched to read the semantic image and add the label to the tracklets -->
 <launch>
-  <node pkg="image_preproc_ros_tool" type="label_dilation" name="label_dilation" output="screen">
+  <arg name="start_nodelet_manager" default="true"/>
+  <arg name="nodelet_manager_name" default="semantic_labels_nodelet_manager"/>
+  <arg name="subscriber_topic_matches" default="/tracklets_depth/tracklets/left/with_outlier_dummy"/>
+  <arg name="publisher_topic" default="/tracklets_depth/tracklets/left/with_outlier_label"/>
+
+  <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" output="screen" args="manager" if="$(arg start_nodelet_manager)"/>
+
+  <!-- LabelDilation -->
+  <node pkg="nodelet" type="nodelet" name="label_dilation_nodelet"
+          args="load image_preproc_ros_tool/LabelDilationNodelet $(arg nodelet_manager_name)" output="screen" required="true">
     <rosparam command="load" file="$(find image_preproc_ros_tool)/launch/params/label_dilation_parameters.yaml"/>
     <param name="subscriber_topic" value="/sensor/camera/color_labels/left/image_rect"/>
     <param name="publisher_topic" value="/semantic_labels/eroded_image"/>
@@ -9,13 +18,14 @@
   </node>
 
   <arg name="config" default="$(find matches_conversion_ros_tool)/launch/params/semantic_labels_parameters.yaml" />
-
-  <node pkg="matches_conversion_ros_tool" type="semantic_labels" name="semantic_labels" output="screen">
+  <!-- SemanticLabels -->
+  <node pkg="nodelet" type="nodelet" name="semantic_labels_nodelet"
+          args="load matches_conversion_ros_tool/SemanticLabelsNodelet $(arg nodelet_manager_name)" output="screen" required="true">
     <rosparam command="load" file="$(arg config)"/>
     <param name="subscriber_labels_topic" value="/semantic_labels/eroded_image"/>
-    <param name="subscriber_matches_topic" value="/tracklets_depth/tracklets/left/with_outlier_dummy"/>
-    <param name="matches_publisher_topic" value="/tracklets_depth/tracklets/left/with_outlier_label"/>
-    <param name="verbosity" value="info"/>
+    <param name="subscriber_matches_topic" value="$(arg subscriber_topic_matches)"/>
+    <param name="matches_publisher_topic" value="$(arg publisher_topic)"/>
+    <param name="verbosity" value="debug"/>
     <param name="roi_height" value="3"/>
     <param name="roi_width" value="3"/>
   </node>

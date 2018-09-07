@@ -8,25 +8,12 @@ general:
 # viso2::Matcher params and tracker config
 matcher:
   nms_n: 7
-  nms_tau: 40
+  nms_tau: 20
   match_binsize: 200
   match_radius: 400
-  match_disp_tolerance: 2
-  outlier_disp_tolerance: 5
-  outlier_flow_tolerance: 3
+  outlier_flow_tolerance: 4
   multi_stage: 1
   half_resolution: 0
   max_track_length: 100
   method: 0
-  # nms_n: 10
-  # nms_tau: 20
-  # match_binsize: 120
-  # match_radius: 400
-  # match_disp_tolerance: 2
-  # outlier_disp_tolerance: 5
-  # outlier_flow_tolerance: 3
-  # multi_stage: 1
-  # half_resolution: 0
-  # max_track_length: 10000 # this is a lot only for testing
-  # method: 0
-  # refinement: 1 #0: none, 1: pixel, 2: subpixel
+  refinement: 1 #0: none, 1: pixel, 2: subpixel
