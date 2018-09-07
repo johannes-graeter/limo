@@ -2,8 +2,6 @@
   <!--must be set before launchfile starts-->
   <rosparam param="use_sim_time" subst_value="True"> true </rosparam>
 
-  <arg name="use_liviodo_prior" default="false"/>
-
   <!-- <arg name="nodelet_manager_name" default="global_nodelet_manager"/>
   <node pkg="nodelet" type="nodelet" name="$(arg nodelet_manager_name)" output="screen" args="manager"/>
    -->
@@ -53,40 +51,11 @@
   <!-- Add labels from semantic labeling to matches. -->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>
 
-
-  <!-- odometry node -->
-  <arg name="config_odometry" default="$(find demo_keyframe_bundle_adjustment_meta)/res/config_odometry_mono_depth.yaml"/>
-  <node pkg="odometry_mono_depth_ros_tool" type="odometry_mono_depth" name="odometry_mono_depth" output="screen" if="$(arg use_liviodo_prior)">
-    <param name="config_odometry_mono_depth" value="$(arg config_odometry)"/>
-    <param name="verbosity" value="debug"/>
-  </node>
-
   <!-- launch keyframe bundle adjustment -->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/keyframe_ba_monolid.launch">
-    <arg name="prior_vehicle_frame" value="estimate_prior/vehicle"  if="$(arg use_liviodo_prior)"/>
+    <arg name="prior_vehicle_frame" value="estimate_prior/vehicle"  if="false"/>
   </include>
-
-  <!--trace estimate-->
-  <node pkg="trajectory_tracer_ros_tool" type="trajectory_tracer" name="trajectory_tracer_gt" output="screen">
-    <rosparam command="load" file="$(find trajectory_tracer_ros_tool)/launch/params/trajectory_tracer_parameters.yaml"/>
-    <param name="subscriber_msg_name" value=""/>
-    <param name="publisher_msg_name" value="/gt/trajectory"/>
-    <param name="ref_frame_id" value="gt/vehicle"/>
-    <param name="msg_ref_frame_id" value="estimate/local_cs_vehicle"/>
-    <param name="frame_id" value="gt/local_cs_vehicle"/>
-    <param name="max_tracing_size" value="100000"/>
-  </node>
-
-    <!--trace estimate-->
-  <node pkg="trajectory_tracer_ros_tool" type="trajectory_tracer" name="trajectory_tracer_prior" output="screen">
-    <rosparam command="load" file="$(find trajectory_tracer_ros_tool)/launch/params/trajectory_tracer_parameters.yaml"/>
-    <param name="subscriber_msg_name" value=""/>
-    <param name="publisher_msg_name" value="/estimate_prior/trajectory"/>
-    <param name="ref_frame_id" value="estimate_prior/vehicle"/>
-    <param name="msg_ref_frame_id" value="estimate/local_cs_vehicle"/>
-    <param name="frame_id" value="estimate_prior/local_cs_vehicle"/>
-    <param name="max_tracing_size" value="100000"/>
-  </node>
+  
   <!-- play rosbag with clock -->
   <!-- /mrtstorage/datasets/kitti/odometry/odometry_rosbags/gray/00.bag"-->
 </launch>
