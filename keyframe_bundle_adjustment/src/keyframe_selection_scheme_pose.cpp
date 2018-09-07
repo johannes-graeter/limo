@@ -9,15 +9,6 @@
 #include "internal/keyframe_selection_scheme_pose.hpp"
 
 namespace keyframe_bundle_adjustment {
-namespace {
-double calcQuaternionDiff(const Pose& p0, const Pose& p1) {
-    Eigen::Quaterniond q0(p0[0], p0[1], p0[2], p0[3]);
-    Eigen::Quaterniond q1(p1[0], p1[1], p1[2], p1[3]);
-
-    Eigen::AngleAxisd a(q1.inverse() * q0);
-    return a.angle();
-}
-}
 
 KeyframeSelectionSchemePose::KeyframeSelectionSchemePose(double critical_quaternion_difference)
         : critical_quaternion_diff_(critical_quaternion_difference) {

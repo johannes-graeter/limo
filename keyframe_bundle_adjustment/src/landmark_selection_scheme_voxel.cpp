@@ -12,18 +12,29 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 
-#include "internal/landmark_selection_scheme_helpers.hpp"
+#include <boost/geometry/algorithms/distance.hpp>
+#include <boost/geometry/core/cs.hpp>
+#include <boost/geometry/geometries/geometries.hpp>
+#include <boost/geometry/geometries/register/point.hpp>
 
 #include <chrono>
-
-namespace keyframe_bundle_adjustment {
+#include "internal/landmark_selection_scheme_helpers.hpp"
 
 // TypeDefs
 using Point = pcl::PointXYZL;
 using Cloud = pcl::PointCloud<Point>;
 
-std::set<LandmarkId> LandmarkSelectionSchemeVoxel::getSelection(const LandmarkMap& landmarks,
-                                                                const KeyframeMap& keyframes) const {
+// Register point types for boost geometry
+BOOST_GEOMETRY_REGISTER_POINT_3D_CONST(Point, float, boost::geometry::cs::cartesian, x, y, z)
+// BOOST_GEOMETRY_REGISTER_POINT_3D_CONST(Eigen::Vector3d, double, boost::geometry::cs::cartesian, x(), y(), z())
+using BoostPoint = boost::geometry::model::point<double, 3, boost::geometry::cs::cartesian>;
+using PosePath = boost::geometry::model::linestring<BoostPoint>;
+
+
+namespace keyframe_bundle_adjustment {
+
+std::set<LandmarkId> LandmarkSparsificationSchemeVoxel::getSelection(const LandmarkMap& landmarks,
+                                                                     const KeyframeMap& keyframes) const {
     auto categorized_lms = getCategorizedSelection(landmarks, keyframes);
     std::set<LandmarkId> out;
 
@@ -76,15 +87,40 @@ void filterXYZ(const Cloud::Ptr& cloudInput,
         removed_labels.insert(l);
     }
 }
+
+void filterPipe(const Cloud::Ptr& cloudInput,
+                const Eigen::Isometry3d& ref_pose,
+                const LandmarkSchemeBase::KeyframeMap& keyframes,
+                double dist_thres,
+                Cloud::Ptr& cloudFiltered,
+                std::set<int>& removed_labels) {
+    // Remember: input cloud is relative ot first pose, keyframes to global cos.
+    // Make path relative to ref_pose.
+    PosePath path;
+    for (const auto& kf : keyframes) {
+        Eigen::Vector3d p = ref_pose * kf.second->getEigenPose().inverse().translation();
+        path.push_back(BoostPoint(p[0], p[1], p[2]));
+    }
+
+    for (const auto& p : cloudInput->points) {
+        double dist = boost::geometry::distance(p, path);
+        if (dist < dist_thres) {
+            cloudFiltered->points.push_back(p);
+        } else {
+            removed_labels.insert(p.label);
+        }
+    }
 }
-std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelectionSchemeVoxel::getCategorizedSelection(
-    const LandmarkMap& lms, const KeyframeMap& keyframes) const {
+}
+std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSparsificationSchemeVoxel::
+    getCategorizedSelection(const LandmarkMap& lms, const KeyframeMap& keyframes) const {
 
     // Get current position
     auto it = std::max_element(keyframes.cbegin(), keyframes.cend(), [](const auto& a, const auto& b) {
         return a.second->timestamp_ < b.second->timestamp_;
     });
     Eigen::Isometry3d cur_pos = it->second->getEigenPose();
+
     // lookup for ids (uint32t may be too small for global ids)
     std::map<uint32_t, LandmarkId> lut;
     uint32_t ind = 0;
@@ -107,33 +143,30 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
 
         cloudInput->points.push_back(p);
     }
-
-    std::cout << "Duration copy="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_time_pcl)
-                     .count()
-              << " ms" << std::endl;
-
     std::cout << "Size before voxelization=" << lms.size() << std::endl;
 
+    // Filter z for plausability.
+    pcl::PassThrough<Point> pass;
+    pass.setInputCloud(cloudInput);
+    pass.setFilterFieldName("z");
+    pass.setFilterLimits(-20, 100.);
+    pass.filter(*cloudInput);
+
     // Get roi in xyz for voxelization
-    Cloud::Ptr cloud_filtered(new Cloud);
+    Cloud::Ptr cloud_middle(new Cloud);
     std::set<int> labels_far;
-    filterXYZ(cloudInput, params_.roi_far_xyz, cloud_filtered, labels_far);
-    std::cout << "labels_far " << labels_far.size() << std::endl;
+    filterPipe(cloudInput, cur_pos, keyframes, params_.roi_far_xyz[0], cloud_middle, labels_far);
 
     // Voxelize the cloud.
     pcl::VoxelGrid<Point> sor;
-    sor.setInputCloud(cloud_filtered);
+    sor.setInputCloud(cloud_middle);
     sor.setLeafSize(params_.voxel_size_xyz[0], params_.voxel_size_xyz[1], params_.voxel_size_xyz[2]);
-    sor.filter(*cloud_filtered);
-
+    sor.filter(*cloud_middle);
 
     // Filter XYZ with smaller roi for categorization.
-    Cloud::Ptr near_cloud(new Cloud);
+    Cloud::Ptr cloud_near(new Cloud);
     std::set<int> labels_middle;
-    filterXYZ(cloud_filtered, params_.roi_middle_xyz, near_cloud, labels_middle);
-    std::cout << "labels_middle " << labels_middle.size() << std::endl;
+    filterPipe(cloud_middle, cur_pos, keyframes, params_.roi_middle_xyz[0], cloud_near, labels_middle);
 
     std::cout << "Duration pcl stuff="
               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
@@ -143,15 +176,14 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
 
     // Convert from label to id.
     std::vector<LandmarkId> ids_near;
-    ids_near.reserve(near_cloud->points.size());
-    for (const auto& p : near_cloud->points) {
+    ids_near.reserve(cloud_near->points.size());
+    for (const auto& p : cloud_near->points) {
         ids_near.push_back(lut.at(p.label));
     }
-    std::cout << "num lms near=" << ids_near.size() << std::endl;
 
     // Add near landmarks labels.
     // Calc flow.
-    auto map_flow = landmark_helpers::calcMeanFlow(ids_near, keyframes);
+    auto map_flow = landmark_helpers::calcFlow(ids_near, keyframes, false);
 
     // Add to output.
     std::map<LandmarkId, LandmarkCategorizatonInterface::Category> out;

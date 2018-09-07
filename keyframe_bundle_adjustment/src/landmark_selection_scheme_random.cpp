@@ -10,8 +10,8 @@
 
 namespace keyframe_bundle_adjustment {
 
-std::set<LandmarkId> LandmarkSelectionSchemeRandom::getSelection(const LandmarkMap& landmarks,
-                                                                 const KeyframeMap& keyframes) const {
+std::set<LandmarkId> LandmarkSparsificationSchemeRandom::getSelection(const LandmarkMap& landmarks,
+                                                                      const KeyframeMap& keyframes) const {
 
     // copy indices from landmarks
     std::vector<LandmarkId> lm_ids;
@@ -30,13 +30,13 @@ std::set<LandmarkId> LandmarkSelectionSchemeRandom::getSelection(const LandmarkM
 }
 
 
-LandmarkSelectionSchemeBase::ConstPtr LandmarkSelectionSchemeRandom::createConst(size_t num_landmarks) {
+LandmarkSparsificationSchemeBase::ConstPtr LandmarkSparsificationSchemeRandom::createConst(size_t num_landmarks) {
 
-    return LandmarkSelectionSchemeBase::ConstPtr(new LandmarkSelectionSchemeRandom(num_landmarks));
+    return LandmarkSparsificationSchemeBase::ConstPtr(new LandmarkSparsificationSchemeRandom(num_landmarks));
 }
 
-LandmarkSelectionSchemeBase::Ptr LandmarkSelectionSchemeRandom::create(size_t num_landmarks) {
+LandmarkSparsificationSchemeBase::Ptr LandmarkSparsificationSchemeRandom::create(size_t num_landmarks) {
 
-    return LandmarkSelectionSchemeBase::Ptr(new LandmarkSelectionSchemeRandom(num_landmarks));
+    return LandmarkSparsificationSchemeBase::Ptr(new LandmarkSparsificationSchemeRandom(num_landmarks));
 }
 }

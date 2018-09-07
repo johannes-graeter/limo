@@ -57,10 +57,16 @@ std::vector<LandmarkId> chooseFarLmIds(size_t max_num,
                                        const std::vector<LandmarkId>& ids_far,
                                        const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes);
 
-std::map<LandmarkId, double> calcMeanFlow(const std::vector<LandmarkId>& landmarks,
-                                          const std::vector<Keyframe::ConstPtr>& sorted_keyframes);
+std::map<LandmarkId, double> calcFlow(const std::vector<LandmarkId>& landmarks,
+                                      const std::vector<Keyframe::ConstPtr>& sorted_keyframes,
+                                      bool use_mean = true);
 
-std::map<LandmarkId, double> calcMeanFlow(const std::vector<LandmarkId>& landmarks,
-                                          const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes);
+std::map<LandmarkId, double> calcFlow(const std::vector<LandmarkId>& landmarks,
+                                      const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes,
+                                      bool use_mean = true);
+}
+
+namespace keyframe_helpers {
+std::vector<Keyframe::ConstPtr> getSortedKeyframes(const std::map<KeyframeId, Keyframe::ConstPtr>& keyframes);
 }
 }

@@ -25,14 +25,15 @@ namespace keyframe_bundle_adjustment {
 * translation and far away features are important for good rotation estimation.
 * Take a fix number of measurements ineach of the bins, as defined in parameter struct.
 */
-class LandmarkSelectionSchemeObservability : public LandmarkSelectionSchemeBase, public LandmarkCategorizatonInterface {
+class LandmarkSparsificationSchemeObservability : public LandmarkSparsificationSchemeBase,
+                                                  public LandmarkCategorizatonInterface {
 public: // public classes/enums/types etc...
     struct BinParameters {
         unsigned int max_num_landmarks_near{300};   ///< maximum number of landmarks in near bin
         unsigned int max_num_landmarks_middle{300}; ///< maximum number of landmarks in middle bin
         unsigned int max_num_landmarks_far{300};    ///< maximum number of landmarks in far bin
-        double bound_near_middle = 100.;            ///< bound between near field and middle field
-        double bound_middle_far = 30.;              ///< bound between middle field and far field
+        double bound_near_middle = 0.4;             ///< bound between near field and middle field
+        double bound_middle_far = 0.2;              ///< bound between middle field and far field
     };
 
     struct Parameters {
@@ -48,20 +49,21 @@ public: // public classes/enums/types etc...
 
 public: // public methods
     // default constructor
-    LandmarkSelectionSchemeObservability(Parameters p) : params_(p) {
+    LandmarkSparsificationSchemeObservability(Parameters p) : params_(p) {
         ;
     }
 
     // default destructor
-    virtual ~LandmarkSelectionSchemeObservability() = default;
+    virtual ~LandmarkSparsificationSchemeObservability() = default;
 
     // default move
-    LandmarkSelectionSchemeObservability(LandmarkSelectionSchemeObservability&& other) = default;
-    LandmarkSelectionSchemeObservability& operator=(LandmarkSelectionSchemeObservability&& other) = default;
+    LandmarkSparsificationSchemeObservability(LandmarkSparsificationSchemeObservability&& other) = default;
+    LandmarkSparsificationSchemeObservability& operator=(LandmarkSparsificationSchemeObservability&& other) = default;
 
     // default copy
-    LandmarkSelectionSchemeObservability(const LandmarkSelectionSchemeObservability& other) = default;
-    LandmarkSelectionSchemeObservability& operator=(const LandmarkSelectionSchemeObservability& other) = default;
+    LandmarkSparsificationSchemeObservability(const LandmarkSparsificationSchemeObservability& other) = default;
+    LandmarkSparsificationSchemeObservability& operator=(const LandmarkSparsificationSchemeObservability& other) =
+        default;
 
     std::set<LandmarkId> getSelection(const LandmarkMap& new_frame, const KeyframeMap& keyframes) const override;
 

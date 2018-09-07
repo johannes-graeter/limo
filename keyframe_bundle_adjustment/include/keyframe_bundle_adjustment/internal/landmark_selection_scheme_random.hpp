@@ -18,24 +18,24 @@ namespace keyframe_bundle_adjustment {
 *
 * Concrete LandmarkSelectionScheme; select num_landmarks randomly
 */
-class LandmarkSelectionSchemeRandom : public LandmarkSelectionSchemeBase {
+class LandmarkSparsificationSchemeRandom : public LandmarkSparsificationSchemeBase {
 public: // public classes/enums/types etc...
 public: // public methods
     // default constructor
-    LandmarkSelectionSchemeRandom(size_t num_landmarks) : num_landmarks_(num_landmarks) {
+    LandmarkSparsificationSchemeRandom(size_t num_landmarks) : num_landmarks_(num_landmarks) {
         ;
     }
 
     // default destructor
-    virtual ~LandmarkSelectionSchemeRandom() = default;
+    virtual ~LandmarkSparsificationSchemeRandom() = default;
 
     // default move
-    LandmarkSelectionSchemeRandom(LandmarkSelectionSchemeRandom&& other) = default;
-    LandmarkSelectionSchemeRandom& operator=(LandmarkSelectionSchemeRandom&& other) = default;
+    LandmarkSparsificationSchemeRandom(LandmarkSparsificationSchemeRandom&& other) = default;
+    LandmarkSparsificationSchemeRandom& operator=(LandmarkSparsificationSchemeRandom&& other) = default;
 
     // default copy
-    LandmarkSelectionSchemeRandom(const LandmarkSelectionSchemeRandom& other) = default;
-    LandmarkSelectionSchemeRandom& operator=(const LandmarkSelectionSchemeRandom& other) = default;
+    LandmarkSparsificationSchemeRandom(const LandmarkSparsificationSchemeRandom& other) = default;
+    LandmarkSparsificationSchemeRandom& operator=(const LandmarkSparsificationSchemeRandom& other) = default;
 
     std::set<LandmarkId> getSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const override;
 

@@ -22,23 +22,23 @@ namespace keyframe_bundle_adjustment {
 *  In this simple version this is equal to the test if the 3d landmark is behin the image plane or
 * not
 */
-class LandmarkSelectionSchemeCheirality : public LandmarkSelectionSchemeBase {
+class LandmarkRejectionSchemeCheirality : public LandmarkRejectionSchemeBase {
 public: // public classes/enums/types etc...
 public: // attributes
 public: // public methods
     // default constructor
-    LandmarkSelectionSchemeCheirality() = default;
+    LandmarkRejectionSchemeCheirality() = default;
 
     // default destructor
-    virtual ~LandmarkSelectionSchemeCheirality() = default;
+    virtual ~LandmarkRejectionSchemeCheirality() = default;
 
     // default move
-    LandmarkSelectionSchemeCheirality(LandmarkSelectionSchemeCheirality&& other) = default;
-    LandmarkSelectionSchemeCheirality& operator=(LandmarkSelectionSchemeCheirality&& other) = default;
+    LandmarkRejectionSchemeCheirality(LandmarkRejectionSchemeCheirality&& other) = default;
+    LandmarkRejectionSchemeCheirality& operator=(LandmarkRejectionSchemeCheirality&& other) = default;
 
     // default copy
-    LandmarkSelectionSchemeCheirality(const LandmarkSelectionSchemeCheirality& other) = default;
-    LandmarkSelectionSchemeCheirality& operator=(const LandmarkSelectionSchemeCheirality& other) = default;
+    LandmarkRejectionSchemeCheirality(const LandmarkRejectionSchemeCheirality& other) = default;
+    LandmarkRejectionSchemeCheirality& operator=(const LandmarkRejectionSchemeCheirality& other) = default;
 
     std::set<LandmarkId> getSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const override;
 
@@ -46,12 +46,12 @@ public: // public methods
     /// \brief createConst, factory function for const pointer
     /// \return
     ///
-    static ConstPtr createConst();
+    static LandmarkRejectionSchemeBase::ConstPtr createConst();
 
     //////////////////////////////////////////////////
     /// \brief create, factory function
     /// \return
     ///
-    static Ptr create();
+    static LandmarkRejectionSchemeBase::Ptr create();
 };
 }

@@ -47,14 +47,27 @@ bool KeyframeRejectionSchemeFlow::isUsable(const Keyframe::Ptr& new_frame,
         }
     }
 
-    // get median flow
-    std::nth_element(flow_squared.begin(),
-                     flow_squared.begin() + flow_squared.size() / 2,
-                     flow_squared.end(),
-                     [](const auto& a, const auto& b) { return a < b; });
+    //    // get median flow
+    //    std::nth_element(flow_squared.begin(),
+    //                     flow_squared.begin() + flow_squared.size() / 2,
+    //                     flow_squared.end(),
+    //                     [](const auto& a, const auto& b) { return a < b; });
 
-    std::cout << "flow_squared.size()=" << flow_squared.size() << std::endl;
-    double median_flow = flow_squared[flow_squared.size() / 2];
+    //    double median_flow = flow_squared[flow_squared.size() / 2];
+
+    // get mean flow
+    double sum = 0.;
+    for (const auto& el : flow_squared) {
+        sum += std::sqrt(el);
+    }
+    sum /= static_cast<double>(flow_squared.size());
+    // This is not median but mean,
+    ///@todo change names.
+    double median_flow = sum * sum;
+
+    if (median_flow < min_median_flow_squared_) {
+        std::cout << "---- Not enough flow, reject frame." << std::endl;
+    }
 
     // accept if median flow is bigger than threshold
     return median_flow > min_median_flow_squared_;

@@ -26,33 +26,33 @@
 namespace keyframe_bundle_adjustment {
 
 /**
-*  @class KeyframeSelectionSchemeBase
+*  @class LandmarkSchemeBase
 *  @par
 *
-*  Base class for keyframe selection schemes
+*  Base class for landmark selection, rejection and sparsification schemes
 */
-class LandmarkSelectionSchemeBase {
+class LandmarkSchemeBase {
 public: // public classes/enums/types etc...
-    using Ptr = std::shared_ptr<LandmarkSelectionSchemeBase>;
-    using ConstPtr = std::shared_ptr<const LandmarkSelectionSchemeBase>;
+        //    using Ptr = std::shared_ptr<LandmarkSchemeBase>;
+        //    using ConstPtr = std::shared_ptr<const LandmarkSchemeBase>;
     using LandmarkMap = std::map<LandmarkId, Landmark::ConstPtr>;
     using KeyframeMap = std::map<KeyframeId, Keyframe::ConstPtr>;
 
 public: // attributes
 public: // public methods
     // default constructor
-    LandmarkSelectionSchemeBase() = default;
+    LandmarkSchemeBase() = default;
 
     // default destructor
-    virtual ~LandmarkSelectionSchemeBase() = default;
+    virtual ~LandmarkSchemeBase() = default;
 
     // default move
-    LandmarkSelectionSchemeBase(LandmarkSelectionSchemeBase&& other) = default;
-    LandmarkSelectionSchemeBase& operator=(LandmarkSelectionSchemeBase&& other) = default;
+    LandmarkSchemeBase(LandmarkSchemeBase&& other) = default;
+    LandmarkSchemeBase& operator=(LandmarkSchemeBase&& other) = default;
 
     // default copy
-    LandmarkSelectionSchemeBase(const LandmarkSelectionSchemeBase& other) = default;
-    LandmarkSelectionSchemeBase& operator=(const LandmarkSelectionSchemeBase& other) = default;
+    LandmarkSchemeBase(const LandmarkSchemeBase& other) = default;
+    LandmarkSchemeBase& operator=(const LandmarkSchemeBase& other) = default;
 
     /**
      * @brief getSelection, abstract class for interface to schemes
@@ -60,5 +60,89 @@ public: // public methods
      * @return selected set of landmarks
      */
     virtual std::set<LandmarkId> getSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const = 0;
+};
+
+/**
+*  @class LandmarkSelectionSchemeBase
+*  @par
+*
+*  Selection scheme, all landmarks selected by this scheme get definitely accepted
+*/
+class LandmarkSelectionSchemeBase : public LandmarkSchemeBase {
+public: // Public classes/enums/types etc...
+    using Ptr = std::shared_ptr<LandmarkSelectionSchemeBase>;
+    using ConstPtr = std::shared_ptr<const LandmarkSelectionSchemeBase>;
+
+public: // Attributes.
+public: // Public methods.
+    // Default constructor.
+    explicit LandmarkSelectionSchemeBase() = default;
+
+    // Default destructor.
+    virtual ~LandmarkSelectionSchemeBase() = default;
+
+    // Default move.
+    LandmarkSelectionSchemeBase(LandmarkSelectionSchemeBase&& other) = default;
+    LandmarkSelectionSchemeBase& operator=(LandmarkSelectionSchemeBase&& other) = default;
+
+    // Default copy.
+    LandmarkSelectionSchemeBase(const LandmarkSelectionSchemeBase& other) = default;
+    LandmarkSelectionSchemeBase& operator=(const LandmarkSelectionSchemeBase& other) = default;
+};
+
+/**
+*  @class LandmarkRejectionSchemeBase
+*  @par
+*
+*  Rejection scheme, all landmarks that get not selected by this scheme get definitely rejected.
+*/
+class LandmarkRejectionSchemeBase : public LandmarkSchemeBase {
+public: // Public classes/enums/types etc...
+    using Ptr = std::shared_ptr<LandmarkRejectionSchemeBase>;
+    using ConstPtr = std::shared_ptr<const LandmarkRejectionSchemeBase>;
+
+public: // Attributes.
+public: // Public methods.
+    // Default constructor.
+    explicit LandmarkRejectionSchemeBase() = default;
+
+    // Default destructor.
+    virtual ~LandmarkRejectionSchemeBase() = default;
+
+    // Default move.
+    LandmarkRejectionSchemeBase(LandmarkRejectionSchemeBase&& other) = default;
+    LandmarkRejectionSchemeBase& operator=(LandmarkRejectionSchemeBase&& other) = default;
+
+    // Default copy.
+    LandmarkRejectionSchemeBase(const LandmarkRejectionSchemeBase& other) = default;
+    LandmarkRejectionSchemeBase& operator=(const LandmarkRejectionSchemeBase& other) = default;
+};
+
+/**
+*  @class LandmarkSparsificationSchemeBase
+*  @par
+*
+*  After selection and rejection rest of landmarks is sparsified by these methods.
+*/
+class LandmarkSparsificationSchemeBase : public LandmarkSchemeBase {
+public: // Public classes/enums/types etc...
+    using Ptr = std::shared_ptr<LandmarkSparsificationSchemeBase>;
+    using ConstPtr = std::shared_ptr<const LandmarkSparsificationSchemeBase>;
+
+public: // Attributes.
+public: // Public methods.
+    // Default constructor.
+    explicit LandmarkSparsificationSchemeBase() = default;
+
+    // Default destructor.
+    virtual ~LandmarkSparsificationSchemeBase() = default;
+
+    // Default move.
+    LandmarkSparsificationSchemeBase(LandmarkSparsificationSchemeBase&& other) = default;
+    LandmarkSparsificationSchemeBase& operator=(LandmarkSparsificationSchemeBase&& other) = default;
+
+    // Default copy.
+    LandmarkSparsificationSchemeBase(const LandmarkSparsificationSchemeBase& other) = default;
+    LandmarkSparsificationSchemeBase& operator=(const LandmarkSparsificationSchemeBase& other) = default;
 };
 }

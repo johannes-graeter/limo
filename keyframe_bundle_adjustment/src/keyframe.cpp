@@ -14,8 +14,10 @@ Keyframe::Keyframe(TimestampNSec timestamp,
                    std::map<CameraId, Camera::Ptr> cameras,
                    std::map<LandmarkId, CameraIds> landmark_to_cameras,
                    EigenPose p,
-                   FixationStatus fix_stat)
-        : timestamp_(timestamp), cameras_(cameras), fixation_status_(fix_stat), is_active_(true) {
+                   FixationStatus fix_stat,
+                   Plane ground_plane)
+        : timestamp_(timestamp), cameras_(cameras), fixation_status_(fix_stat), local_ground_plane_(ground_plane),
+          is_active_(true) {
     assignMeasurements(tracklets, landmark_to_cameras);
     assignPose(p);
 }
@@ -24,8 +26,9 @@ Keyframe::Keyframe(TimestampNSec timestamp,
                    const Tracklets& tracklets,
                    Camera::Ptr camera,
                    EigenPose p,
-                   Keyframe::FixationStatus fix_stat)
-        : timestamp_(timestamp), fixation_status_(fix_stat), is_active_(true) {
+                   Keyframe::FixationStatus fix_stat,
+                   Plane ground_plane)
+        : timestamp_(timestamp), fixation_status_(fix_stat), local_ground_plane_(ground_plane), is_active_(true) {
     CameraId cam_id = 0;
     cameras_[cam_id] = camera;
     assignMeasurements(tracklets, cam_id);

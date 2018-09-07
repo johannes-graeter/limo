@@ -31,19 +31,18 @@
 //}
 //
 // TEST(Math, Float) {
-//	  ASSERT_FLOAT_EQ((10.0f + 2.0f) * 3.0f, 10.0f cpp:1411* 3.0f + 2.0f * 3.0f)
+//	  ASSERT_FLOAT_EQ((10.0f + 2.0f) * 3.0f, 10.0f * 3.0f + 2.0f * 3.0f)
 //}
 //=======================================================================================================================================================
 //#include "bundler.hpp"
 #include "bundle_adjuster_keyframes.hpp"
 #include "gtest/gtest.h"
 #include "internal/cost_functors_ceres.hpp"
+#include "internal/indexed_histogram.hpp"
 #include "internal/local_parameterizations.hpp"
 #include "internal/motion_model_regularization.hpp"
 #include "internal/triangulator.hpp"
-
-//#include "internal/indexed_histogram.hpp"
-//#include "internal/voxel_grid.hpp"
+#include "internal/voxel_grid.hpp"
 
 #include <fstream>
 #include <keyframe_selection_schemes.hpp>
@@ -452,7 +451,7 @@ void evaluate_bundle_adjustment(std::tuple<double, double> noise_lms,
     }
 
     // define measurements
-    std::vector<Eigen::Vector3d> lms_origin{Eigen::Vector3d(10., 3., 5.5),
+    std::vector<Eigen::Vector3d> lms_origin{Eigen::Vector3d(10., 0.5, 5.5),
                                             Eigen::Vector3d(11., 1., 6.5),
                                             Eigen::Vector3d(14., -5., 6.),
                                             Eigen::Vector3d(9., 1., 5.),
@@ -686,7 +685,7 @@ TEST(LandmarkSelector, base) {
     {
         LandmarkSelector selector;
 
-        selector.addScheme(LandmarkSelectionSchemeRandom::create(6));
+        selector.addScheme(LandmarkSparsificationSchemeRandom::create(6));
 
         auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
         ASSERT_EQ(selected_lms.size(), lms_arr_origin.size());
@@ -694,7 +693,7 @@ TEST(LandmarkSelector, base) {
     {
         LandmarkSelector selector;
 
-        selector.addScheme(LandmarkSelectionSchemeRandom::create(3));
+        selector.addScheme(LandmarkSparsificationSchemeRandom::create(3));
 
         auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
         ASSERT_EQ(selected_lms.size(), 3);
@@ -705,13 +704,13 @@ TEST(LandmarkSelector, base) {
     {
         LandmarkSelector selector;
 
-        selector.addScheme(LandmarkSelectionSchemeCheirality::create());
+        selector.addScheme(LandmarkRejectionSchemeCheirality::create());
 
         auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
         ASSERT_EQ(selected_lms.size(), 3);
         // landmark with id 1 is behin image plane
 
-        selector.addScheme(LandmarkSelectionSchemeRandom::create(2));
+        selector.addScheme(LandmarkSparsificationSchemeRandom::create(2));
         selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
         ASSERT_EQ(selected_lms.size(), 2);
     }
@@ -725,11 +724,11 @@ TEST(LandmarkSelector, base) {
         cur_kf.measurements_.erase(cur_kf.measurements_.find(4));
         kf_const_ptrs[0] = std::make_shared<const Keyframe>(cur_kf); // why is this necessary
 
-        LandmarkSelectionSchemeObservability::Parameters p;
+        LandmarkSparsificationSchemeObservability::Parameters p;
         p.bin_params_.max_num_landmarks_far = 1;
         p.bin_params_.max_num_landmarks_near = 1;
         p.bin_params_.max_num_landmarks_middle = 1;
-        selector.addScheme(LandmarkSelectionSchemeObservability::create(p));
+        selector.addScheme(LandmarkSparsificationSchemeObservability::create(p));
 
         auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
         ASSERT_LE(selected_lms.size(), 3);
@@ -738,8 +737,8 @@ TEST(LandmarkSelector, base) {
         ASSERT_GT(selector.getLandmarkCategories().size(), 0);
 
         for (const auto& el : selected_lms) {
+            ASSERT_NE(el, 1);
             ASSERT_NE(el, 4);
-            ASSERT_NE(el, 0);
         }
     }
 }
@@ -794,14 +793,17 @@ TEST(BundleAdjusterKeyframes, deactivateKeyframes) {
     adjuster.keyframes_.at(convert(TimestampSec(0.1)))->fixation_status_ = Keyframe::FixationStatus::Scale;
 
     // do deactivation
-    adjuster.deactivateKeyframes(3, 0.0, 1000.0);
+    adjuster.deactivateKeyframes(3, 3, 20);
 
     // test result
-    std::cout << "testing" << std::endl;
     ASSERT_EQ(adjuster.active_keyframe_ids_.size(), 5);
     ASSERT_EQ(adjuster.active_landmark_ids_.size(), lms_origin.size());
     ASSERT_EQ(adjuster.keyframes_.at(convert(TimestampSec(0.1)))->fixation_status_, Keyframe::FixationStatus::Pose);
     ASSERT_EQ(adjuster.keyframes_.at(convert(TimestampSec(0.2)))->fixation_status_, Keyframe::FixationStatus::Scale);
+
+    // do deactivation
+    adjuster.deactivateKeyframes(3, 2, 3);
+    ASSERT_EQ(adjuster.active_keyframe_ids_.size(), 3);
 }
 
 TEST(KeyFrameBundleAdjustment, solve) {
@@ -890,7 +892,7 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
         pos.translation().normalize();
     }
 
-    // define measurements
+    // define measurementsTranslationDifferenceRegularization2
     std::vector<Eigen::Vector3d> lms_origin{Eigen::Vector3d(10., 3., 5.5),
                                             Eigen::Vector3d(11., 1., 6.5),
                                             Eigen::Vector3d(14., -5., 6.),
@@ -1022,9 +1024,15 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
         } else {
             kf = Keyframe(stamps.back(), ts, extrinsics_camera_kf, landmark_to_cameras, noisy_poses.at(stamps.back()));
         }
+        // Select first.
+        b.landmark_selector_->select(b.getActiveLandmarkConstPtrs(), b.getActiveKeyframeConstPtrs());
+        std::cout << "Selection done" << std::endl;
+        // Do adjustment.
         summary = b.adjustPoseOnly(kf);
         std::cout << "Optimization done" << std::endl;
         std::cout << "pose= " << Eigen::Map<Eigen::Matrix<double, 1, 7>>(kf.pose_.data()) << std::endl;
+        std::cout << "pose=\n" << kf.getEigenPose().matrix() << std::endl;
+        std::cout << "pose_gt=\n" << poses_gt.at(kf.timestamp_).matrix() << std::endl;
         ASSERT_EQ(kf.getEigenPose().isApprox(poses_gt.at(kf.timestamp_), acceptance_thres), true);
         // Add for printing.
         b.keyframes_[kf.timestamp_] = std::make_shared<Keyframe>(kf);
@@ -1065,6 +1073,18 @@ void evaluate_bundle_adjustment_depth(std::tuple<double, double, double> noise_l
 
             std::cout << std::endl;
         }
+    }
+
+    // compare before and after optimization
+    auto poses_gt_iter = poses_gt.cbegin();
+    auto poses_iter = b.keyframes_.cbegin();
+    //    if (poses_gt.size() != b.keyframes_.size()) {
+    //        throw std::runtime_error("poses_gt.size()=" + std::to_string(poses_gt.size()) +
+    //                                 " != poses.size()=" +
+    //                                 std::to_string(b.keyframes_.size()));
+    //    }
+    for (; poses_gt_iter != poses_gt.cend() && poses_iter != b.keyframes_.cend(); ++poses_gt_iter, ++poses_iter) {
+        ASSERT_EQ(poses_iter->second->getEigenPose().isApprox(poses_gt_iter->second, acceptance_thres), true);
     }
 }
 }
@@ -1127,6 +1147,7 @@ TEST(KeyFrameBundleAdjustment, solve_depth) {
 }
 
 
+// Test if 3d landmarks are created correctly by using tracklets with depth bias
 TEST(LandmarkCreator, CreateWithDepth) {
     // Test if 3d landmarks are created correctly by using tracklets with depth bias
 
@@ -1190,31 +1211,70 @@ TEST(LandmarkCreator, CreateWithDepth) {
     }
 }
 
-TEST(CostFunctors, motion_regularization) {
+TEST(CostFunctor, motion_regularization) {
     using namespace keyframe_bundle_adjustment;
 
     regularization::MotionModelRegularization cost_func;
 
     // Yaw only
+    double yaw = -10. / 180. * M_PI;
+    double l = -1.;
+    double x = l / yaw * std::sin(yaw);
+    double y = l / yaw * (1 - std::cos(yaw));
+
+    //    {
+    //        std::array<double, 7> p0{{1., 0., 0., 0., 0., 0., 0.}};
+    //        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
+    //        std::array<double, 7> p1{{q.w(), q.x(), q.y(), q.z(), x, y, 0.2}};
+
+    //        std::array<double, 2> res;
+    //        cost_func(p1.data(), p0.data(), res.data());
+
+    //        ASSERT_NEAR(res[0], 0., 1e-10);
+    //        ASSERT_NEAR(res[1], 0.2, 1e-10);
+    //    }
+    //    {
+    //        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+    //                             Eigen::AngleAxisd(yaw / 10., Eigen::Vector3d::UnitY()));
+
+    //        std::array<double, 7> p0{{1., 0., 0., 0., 0., 0., 0.}};
+    //        std::array<double, 7> p1{{q.w(), q.x(), q.y(), q.z(), x, y, 0.2}};
+
+    //        std::array<double, 2> res;
+    //        cost_func(p1.data(), p0.data(), res.data());
+
+    //        ASSERT_NEAR(res[0], 0., 1e-10);
+    //        ASSERT_NEAR(res[1], 0.2, 1e-10);
+    //    }
     {
-        double yaw = 10. / 180. * M_PI;
-        double l = 1.;
-        double x = l / yaw * std::sin(yaw);
-        double y = l / yaw * (1 - std::cos(yaw));
-        //        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
-        //                             Eigen::AngleAxisd(yaw / 2., Eigen::Vector3d::UnitX()));
-        Eigen::Quaterniond q(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
-        std::array<double, 7> p0{{1., 0., 0., 0., 0., 0., 0.}};
-        std::array<double, 7> p1{{q.w(), q.x(), q.y(), q.z(), x, y, 0.}};
 
+        Eigen::Quaterniond q0(Eigen::AngleAxisd(yaw * 0.2, Eigen::Vector3d::UnitZ()));
+        Eigen::Quaterniond q_m(Eigen::AngleAxisd(yaw * 1, Eigen::Vector3d::UnitZ()) *
+                               Eigen::AngleAxisd(yaw / 100., Eigen::Vector3d::UnitY()));
+        Eigen::Isometry3d motion;
+        motion.linear() = q_m.toRotationMatrix();
+        motion.translation() = Eigen::Vector3d(x, y, 0.2);
 
-        std::array<double, 1> res;
+        std::array<double, 7> p0{{q0.w(), q0.x(), q0.y(), q0.z(), -50., -100., 0.1}};
+        Eigen::Isometry3d p0_eigen = convert(p0);
+        Eigen::Isometry3d p1_eigen = motion * p0_eigen;
+        Eigen::Quaterniond q1(p1_eigen.rotation());
+        std::array<double, 7> p1{{q1.w(),
+                                  q1.x(),
+                                  q1.y(),
+                                  q1.z(),
+                                  p1_eigen.translation().x(),
+                                  p1_eigen.translation().y(),
+                                  p1_eigen.translation().z()}};
+
+        std::array<double, 2> res;
         cost_func(p1.data(), p0.data(), res.data());
 
         ASSERT_NEAR(res[0], 0., 1e-10);
+        ASSERT_NEAR(res[1], 0.2, 1e-10);
     }
 }
-/*TEST(IndexedHistogram, main) {
+TEST(IndexedHistogram, main) {
     std::vector<double> data(50);
     std::iota(data.begin(), data.end(), -10);
     std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
@@ -1396,7 +1456,7 @@ TEST(LandmarkSelector, voxel) {
     }
     LandmarkSelector selector;
 
-    LandmarkSelectionSchemeVoxel::Parameters p;
+    LandmarkSparsificationSchemeVoxel::Parameters p;
     p.max_num_landmarks_far = 50;
     p.max_num_landmarks_middle = 50;
     p.max_num_landmarks_near = 50;
@@ -1407,7 +1467,7 @@ TEST(LandmarkSelector, voxel) {
     //        p.depth_params.max = 30.0;
     //        p.depth_params.bin_size = 0.7;
     //        p.depth_params.bin_size_scale_factor = 1.1;
-    selector.addScheme(LandmarkSelectionSchemeVoxel::create(p));
+    selector.addScheme(LandmarkSparsificationSchemeVoxel::create(p));
 
     auto selected_lms = selector.select(lms_arr_origin, kf_const_ptrs);
 
@@ -1423,9 +1483,90 @@ TEST(LandmarkSelector, voxel) {
     // test if categorizer interface works
     ASSERT_EQ(selector.getLandmarkCategories().size(), 5);
 }
-*/
+
 TEST(BundleAdjusterKeyframes, adjustMotionOnly) {
 
     evaluate_bundle_adjustment_depth(
-        std::make_tuple(0., 0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.001, {Eigen::Isometry3d::Identity()}, true);
+        std::make_tuple(0., 0., 0.), std::make_tuple(0.0, 0., 0.0, 0.), 0.5, {Eigen::Isometry3d::Identity()}, true);
+}
+
+TEST(CostFunctor, GroundPlaneHeightRegularization) {
+    cost_functors_ceres::GroundPlaneHeightRegularization func;
+    std::array<double, 7> pose{{1., 0., 0., 0., 0., 0., 0.}};
+    std::array<double, 3> lm{{2., 3., -0.5}};
+    double height_over_ground = 1.;
+
+    std::array<double, 3> dir{{0., 0., 1.}};
+
+    double res = 1000000.;
+    func(pose.data(), dir.data(), &height_over_ground, lm.data(), &res);
+
+    ASSERT_EQ(res, 0.5);
+}
+
+TEST(CostFunctor, GroundPlaneMotionRegularization) {
+    cost_functors_ceres::GroundPlaneMotionRegularization func;
+    std::array<double, 7> pose0{{1., 0., 0., 0., 2., 0., 0.}};
+    std::array<double, 7> pose1{{1., 0., 0., 0., 2., 1., 0.5}};
+    std::array<double, 3> dir0{{0., 0., 1.}};
+
+    double res = 1000000.;
+    func(pose0.data(), pose1.data(), dir0.data(), &res);
+    double norm = std::sqrt(0. * 0. + 1. * 1. + 0.5 * 0.5);
+
+    ASSERT_EQ(res, -0.5 / norm);
+}
+
+TEST(CostFunctor, TranslationDifferenceRegularization) {
+    std::array<double, 7> pose0{{1., 0., 0., 0., 2., 0., 0.}};
+    std::array<double, 7> pose1{{1., 0., 0., 0., 2., 1., 0.5}};
+    std::array<double, 7> pose2{{1., 0., 0., 0., 2., 2., 3.}};
+
+    {
+        cost_functors_ceres::TranslationDifferenceRegularization func;
+        std::array<double, 3> res;
+        func(pose0.data(), pose1.data(), pose2.data(), res.data());
+        ASSERT_EQ(res[0], 0.);
+        ASSERT_EQ(res[1], 0.);
+        ASSERT_EQ(res[2], 2.);
+    }
+    {
+        cost_functors_ceres::TranslationDifferenceRegularization2 func(pose0, pose1);
+        std::array<double, 3> res;
+        func(pose2.data(), res.data());
+        ASSERT_EQ(res[0], 0.);
+        ASSERT_EQ(res[1], 0.);
+        ASSERT_EQ(res[2], 2.);
+    }
+}
+
+TEST(LocalParameterization, CircularMotion2d) {
+    local_parameterizations::CircularMotionPlus2d plus_op{};
+
+    std::array<double, 7> pose0{{1., 0., 0., 0., -3.5, -3., -3.}};
+
+    {
+        double yaw = 0.0;
+        double arc = -1.;
+
+        std::array<double, 7> pose1;
+        std::array<double, 2> delta{{yaw, arc}};
+        plus_op(pose0.data(), delta.data(), pose1.data());
+
+        ASSERT_NEAR(pose1[4], -4.5, 1e-10);
+    }
+    {
+        double yaw = 0.05;
+        double arc = -1.;
+
+        std::array<double, 7> pose1;
+        std::array<double, 2> delta{{yaw, arc}};
+        plus_op(pose0.data(), delta.data(), pose1.data());
+
+        ASSERT_NEAR(pose1[4], -4.345, 1e-3);
+        ASSERT_NEAR(pose1[5], -3.196, 1e-3);
+        ASSERT_NEAR(pose1[6], pose0[6], 1e-3);
+    }
+
+    //    pose0 = std:
 }

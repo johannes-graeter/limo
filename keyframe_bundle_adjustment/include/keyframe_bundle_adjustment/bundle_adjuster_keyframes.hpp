@@ -52,7 +52,8 @@ private:                                                     // structs
     using ResidualBlockSize = int;
     using ResidualIdMap = std::map<ResidualId, std::pair<LandmarkId, ResidualBlockSize>>;
 
-    enum class OptimizationFlags { MotionOnly };
+    enum class MotionParameterizationType { FixRotation, FullDOF, Bycicle };
+
 
 public: // exceptions
     struct NotEnoughKeyframesException : public std::exception {
@@ -89,14 +90,9 @@ public: // exceptions
 
 public: // methods
         /**
-         * @brief BundleAdjusterKeyframes, default -> take all landmarks
+         * @brief BundleAdjusterKeyframes, default -> take all landmarks, which fullfill cheirality constraint.
          */
     BundleAdjusterKeyframes();
-
-    /**
-     * @brief BundleAdjusterKeyframes, constructor
-     */
-    BundleAdjusterKeyframes(LandmarkSelectionSchemeBase::ConstPtr);
 
     //    virtual ~BundleAdjusterKeyframes() = default;
 
@@ -113,13 +109,6 @@ public: // methods
      */
     void push(const std::vector<Keyframe>& kfs);
 
-    /**
-     * @brief Checks if a landmark obversed in a given keyframe contains depth information
-     * @param kf, keyframe
-     * @param LandmarkId, id of the landmark which s observed by the given keyframe
-     * @return True, if the observed measurement of the landmark has a valid depth value
-     */
-    bool containsDepth(const Keyframe& kf, const LandmarkId lId) const;
 
     /**
     * @brief optimize, use ceres to optimize poses and landmarks
@@ -136,9 +125,8 @@ public: // methods
      * @param max_time_sec, maximum optimization window size in delta time (seconds)
      */
     void deactivateKeyframes(int min_num_connecting_landmarks = 3,
-                             double min_time_sec = 3.0,
-                             double max_time_sec = 5.0);
-
+                             int min_size_optimization_window = 4,
+                             int max_size_optimization_window = 20);
 
     /**
      * @brief getKeyframe, const getter for keyframe at timestamp
@@ -159,6 +147,7 @@ public: // methods
      * @return sorted vector of keyframes, begins with the oldest frame
      */
     std::vector<Keyframe::Ptr> getSortedActiveKeyframePtrs() const;
+    std::vector<std::pair<KeyframeId, Keyframe::Ptr>> getSortedIdsWithActiveKeyframePtrs() const;
 
     /**
      * @brief getActiveLandmarks
@@ -243,7 +232,8 @@ public:
                                                       25, // motorcycle
                                                       26  // vehicle
                                                   }},
-                                                 {"shrubbery", {21}}};
+                                                 {"shrubbery", {21}},
+                                                 {"ground", {6, 7, 8, 9, 10}}};
 
 private:                                      // attributes
     Triangulator<double> triangulator_;       ///< triangulator instance
@@ -258,11 +248,11 @@ private: // methods
     ///
     void deactivatePoseParameters(const std::set<Keyframe::FixationStatus>& flags);
 
-    /// //////////////////////////////////////////////
-    /// \brief activatePoseParameters
-    /// Set pose parameters variable for the optimization.
-    ///
-    void activatePoseParameters(const std::set<Keyframe::FixationStatus>& flags);
+    //    /// //////////////////////////////////////////////
+    //    /// \brief activatePoseParameters
+    //    /// Set pose parameters variable for the optimization.
+    //    ///
+    //    void activatePoseParameters(const std::set<Keyframe::FixationStatus>& flags);
 
     /// //////////////////////////////////////////////
     /// \brief deactivateLandmarks
@@ -278,7 +268,7 @@ private: // methods
     /**
      * @brief setParameterization, set local parameterization for the problem
      */
-    void setParameterization(Keyframe& kf);
+    void setParameterization(Keyframe& kf, MotionParameterizationType type);
 
     /**
      * @brief addScaleRegularization, add regularization for scale
@@ -286,7 +276,7 @@ private: // methods
      */
     void addScaleRegularization(double weight);
 
-    void addMotionRegularization(double weight);
+    void addGroundplaneRegularization(double weight);
 
     /**
      * @brief filterLandmarksById, fundtion to filter landmarks use in getSelectedLandmarks and
@@ -294,26 +284,34 @@ private: // methods
      * @param landmark_ids_
      * @return
      */
-    std::map<LandmarkId, Landmark::ConstPtr> filterLandmarksById(const std::set<KeyframeId>& landmark_ids_) const;
+    std::map<LandmarkId, Landmark::ConstPtr> filterLandmarksById(const std::set<LandmarkId>& landmark_ids_) const;
 
     /**
      * @brief addKeyframeToProblem, add residual blocks and parameter blocks from one keyframe to problem
      */
     void addKeyframeToProblem(Keyframe& kf,
                               ResidualIdMap& residual_block_ids_depth,
-                              ResidualIdMap& residual_block_ids_repr);
+                              ResidualIdMap& residual_block_ids_repr,
+                              std::shared_ptr<bool> compensate_rotation = std::make_shared<bool>(false));
     /**
      * @brief addKeyframesToProblem, add residuals and parameters for all keyframes.
      * @return
      */
-    std::tuple<ResidualIdMap, ResidualIdMap> addKeyframesToProblem();
+    std::vector<ResidualIdMap> addActiveKeyframesToProblem();
 
     /**
-     * @brief removeLandmarksByLoss, evaluate problems with loss and without loss and reject landmarks that have
-     * high
+     * @brief removeLandmarksByLoss, evaluate problems with loss and without loss and reject landmarks that have high
      * difference
      * @param quantile, qunatile to reject. 0.9 means highest 10% are rejected.
      */
     void removeLandmarksByLoss(double quantile, ResidualIdMap& res_ids);
+
+    /**
+    * @brief addGroundPlaneResiduals, add residuals for ground plane to problem. Residuals can be deactviated by setting
+    * height < -10.;
+    * @param weight, weight of the ehgith regularization. Scale of residual =weight/distance(landmark to next pose)
+    * @param residual_block_ids_gp, residual id map (residual ids to group and residual size)
+    */
+    void addGroundPlaneResiduals(double weight, BundleAdjusterKeyframes::ResidualIdMap& residual_block_ids_gp);
 };
 }

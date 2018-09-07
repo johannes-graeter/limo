@@ -36,31 +36,44 @@ public: // public methods
     MotionModelRegularization() = default;
 
     template <typename T>
-    bool operator()(const T* const pose_origin_from_keyframe1,
-                    const T* const pose_origin_from_keyframe0,
-                    T* residual) const {
+    bool operator()(const T* const pose_keyframe1_origin, const T* const pose_keyframe0_origin, T* residual) const {
         using Pose = Eigen::Transform<T, 3, Eigen::Isometry>;
-        Pose p_O_K0 = convert(pose_origin_from_keyframe0);
-        Pose p_O_K1 = convert(pose_origin_from_keyframe1);
+        Pose p_K0_O = convert(pose_keyframe0_origin);
+        Pose p_K1_O = convert(pose_keyframe1_origin);
 
-        Pose motion_K0_K1 = p_O_K0.inverse() * p_O_K1;
+        Pose motion_K1_K0 = p_K1_O * p_K0_O.inverse();
 
         // Eigen::eulerAngles is aorund moving axes however dynamic "ZYX" should be identical to static "XYZ" accoridng
         // to this
         // https://stackoverflow.com/questions/27508242/roll-pitch-and-yaw-from-rotation-matrix-with-eigen-library
-        Eigen::Matrix<T, 3, 1> yrp = motion_K0_K1.rotation().eulerAngles(2, 1, 0);
-        //        std::cout << yrp[0] << " " << yrp[1] << " " << yrp[2] << " " << std::endl;
-        T d_y_motion_model = center_of_rotation::getDeltaY(yrp[0], motion_K0_K1.translation()[0]);
+        //        Eigen::Matrix<T, 3, 1> yrp = motion_K0_K1.rotation().eulerAngles(2, 1, 0);
 
-        std::cout << d_y_motion_model << std::endl;
-        std::cout << motion_K0_K1.translation()[0] << " " << motion_K0_K1.translation()[1] << std::endl;
-        residual[0] = motion_K0_K1.translation()[1] - d_y_motion_model;
+        // Get yaw from quaternion.
+        // https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+        Eigen::Quaternion<T> q(motion_K1_K0.rotation());
+        q.x() = T(0.);
+        q.y() = T(0.);
+        q.normalize();
+
+        T sign = q.z() < T(0.) ? T(-1.) : T(1.);
+        T yaw = sign * 2. * ceres::acos(q.w());
+
+        T d_y_motion_model = center_of_rotation::getDeltaY(yaw, motion_K1_K0.translation()[0]);
+
+        if (std::is_same<T, double>::value) {
+            std::cout << "y motion_model=" << d_y_motion_model << std::endl;
+            std::cout << "delta_motion translation=" << motion_K1_K0.translation()[0] << " "
+                      << motion_K1_K0.translation()[1] << std::endl;
+            std::cout << "yaw=" << yaw << std::endl;
+        }
+        residual[0] = motion_K1_K0.translation()[1] - d_y_motion_model;
+        residual[1] = motion_K1_K0.translation()[2] - 0.;
 
         return true;
     }
 
     static ceres::CostFunction* Create() {
-        return (new ceres::AutoDiffCostFunction<MotionModelRegularization, 1, 7, 7>(new MotionModelRegularization()));
+        return (new ceres::AutoDiffCostFunction<MotionModelRegularization, 2, 7, 7>(new MotionModelRegularization()));
     }
 };
 }

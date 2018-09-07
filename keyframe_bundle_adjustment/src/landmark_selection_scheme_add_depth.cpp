@@ -8,77 +8,68 @@
 
 #include "internal/landmark_selection_scheme_add_depth.hpp"
 #include <algorithm>
+#include "internal/landmark_selection_scheme_helpers.hpp"
 
 namespace keyframe_bundle_adjustment {
 
+
 std::set<LandmarkId> LandmarkSelectionSchemeAddDepth::getSelection(
-    const LandmarkSelectionSchemeBase::LandmarkMap& landmarks,
-    const LandmarkSelectionSchemeBase::KeyframeMap& keyframes) const {
-
-    // This function makes number of landmarks only bigger.
-    // First add already existing landmarks.
+    const LandmarkSchemeBase::LandmarkMap& landmarks, const LandmarkSchemeBase::KeyframeMap& keyframes) const {
+    // Define output.
     std::set<LandmarkId> out;
-    for (const auto& el : landmarks) {
-        out.insert(el.first);
-    }
 
-    // Put keyframes into vector and sort them
-    std::vector<Keyframe::ConstPtr> kf_ptrs_sorted;
-    kf_ptrs_sorted.reserve(keyframes.size());
+    // Put keyframes into vector and sort them.
+    std::vector<Keyframe::ConstPtr> kf_ptrs_sorted_reverse = keyframe_helpers::getSortedKeyframes(keyframes);
+    std::reverse(kf_ptrs_sorted_reverse.begin(), kf_ptrs_sorted_reverse.end());
 
-    for (const auto& kf : keyframes) {
-        // only use active keyframes
-        if (kf.second->is_active_) {
-            kf_ptrs_sorted.push_back(kf.second);
-        }
-    }
-
-    // Newest keyframe is first.
-    std::sort(kf_ptrs_sorted.begin(), kf_ptrs_sorted.end(), [](const auto& a, const auto& b) {
-        return a->timestamp_ > b->timestamp_;
-    });
 
     // For every Frame index assure num of lms with depth.
-    for (const auto& frame_index_num_lms : params_.num_depth_meas) {
-        const auto& cur_kf_ptr = kf_ptrs_sorted[frame_index_num_lms.first];
-        // Get landmarks ids with valid depth for this keyframe.
-        std::map<LandmarkId, double> ids_depth;
-        for (const auto& lm : cur_kf_ptr->measurements_) {
-            for (const auto& cam_meas : lm.second) {
-                if (cam_meas.second.d > 0.) {
-                    ids_depth[lm.first] = cam_meas.second.d;
-                }
+    for (const auto& el : params_.params_per_keyframe) {
+        FrameIndex ind;
+        NumberLandmarks num_lms_to_add;
+        Comparator comparator;
+        Sorter sorter;
+        std::tie(ind, num_lms_to_add, comparator, sorter) = el;
+
+        if (ind > static_cast<int>(kf_ptrs_sorted_reverse.size() - 1)) {
+            continue;
+        }
+
+        // Get landmarks that fullfill the condition defined by comparator.
+        std::vector<LandmarkId> ids;
+        for (const auto& lm : kf_ptrs_sorted_reverse[ind]->measurements_) {
+            if (landmarks.find(lm.first) != landmarks.cend() && comparator(landmarks.at(lm.first))) {
+                ids.push_back(lm.first);
             }
         }
 
-        // Get landmark ids with depth that are not in landmark selection.
-        std::vector<std::pair<LandmarkId, double>> intersection;
-        std::set_difference(ids_depth.cbegin(),
-                            ids_depth.cend(),
-                            landmarks.cbegin(),
-                            landmarks.cend(),
-                            std::back_inserter(intersection),
-                            [](const auto& a, const auto& b) { return a.first < b.first; });
-
-        // Get num of lms to add.
-        int num_lms_id_inselection = ids_depth.size() - intersection.size();
-        int num_lms_to_add = frame_index_num_lms.second - num_lms_id_inselection;
-
-        std::cout << "LandmarkSelectionSchemeAddDepth: add " << num_lms_to_add << " lms" << std::endl;
-
-        if (num_lms_to_add > 0) {
-            // Get element until whcih vector shall be sorted.
-            int incr = std::min(num_lms_to_add, static_cast<int>(intersection.size()));
-            auto it = std::next(intersection.begin(), incr);
-            // Add nearest Lms to output.
-            // Get n nearest values.
-            std::partial_sort(intersection.begin(), it, intersection.end(), [](const auto& a, const auto& b) {
-                return a.second < b.second;
-            });
-            // insert them to ouptut
-            std::transform(
-                intersection.begin(), it, std::inserter(out, out.begin()), [](const auto& a) { return a.first; });
+        // Get landmarks ids with cost for this keyframe.
+        std::vector<std::pair<LandmarkId, double>> ids_sort_val;
+        ids_sort_val.reserve(ids.size());
+        for (const auto& id : ids) {
+            Eigen::Vector3d local_lm =
+                kf_ptrs_sorted_reverse[ind]->getEigenPose() * LmMap(landmarks.at(id)->pos.data());
+            std::vector<double> cost;
+            for (const auto& cam_meas : kf_ptrs_sorted_reverse[ind]->measurements_.at(id)) {
+                cost.push_back(sorter(cam_meas.second, local_lm));
+            }
+            auto max_it =
+                std::max_element(cost.cbegin(), cost.cend(), [](const auto& a, const auto& b) { return a < b; });
+            ids_sort_val.push_back(std::make_pair(id, *max_it));
         }
+
+        // Add lms with lowest cost to selection.
+        int incr = std::min(num_lms_to_add, static_cast<int>(ids_sort_val.size()));
+        std::partial_sort(ids_sort_val.begin(),
+                          std::next(ids_sort_val.begin(), incr),
+                          ids_sort_val.end(),
+                          [](const auto& a, const auto& b) { return a.second < b.second; });
+
+        // Insert them in selection.
+        std::transform(ids_sort_val.begin(),
+                       std::next(ids_sort_val.begin(), incr),
+                       std::inserter(out, out.begin()),
+                       [](const auto& a) { return a.first; });
     }
 
     return out;

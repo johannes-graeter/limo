@@ -22,74 +22,22 @@ using PoseId = KeyframeId;                 ///< poses are linked to keyframes so
 using EigenPose = Eigen::Isometry3d;       ///< poses are isometries not affine transformaions
 using Pose = std::array<double, 7>;        ///< poses are stored as quaternion(w,x,y,z) and translation(x,y,z)
 using ResidualId = ceres::ResidualBlockId; ///< ids given by ceres to identify residuals so we can
+using Direction = std::array<double, 3>;   ///< direction vector
+///@brief plane, consisting of normal vector and distance to zero.
+struct Plane {
+    Plane() {
+        direction = std::array<double, 3>{{0., 0., 1.}};
+        distance = -std::numeric_limits<double>::max(); // negative distance means no gp will be used in optimization.
+    }
+    Direction direction;
+    double distance;
+};
 
 using FeaturePoint = matches_msg_types::FeaturePoint;
 using Tracklet = matches_msg_types::Tracklet;
 using Tracklets = matches_msg_types::Tracklets;
 
 using Measurement = FeaturePoint; ///< use feature points since vector2d is a pain
-
-
-// struct ResidualHistory {
-
-//    struct Residual{
-//        ResidualId residual_id;
-//        LandmarkId landmark_id;
-//        double value;
-//        double value_without_loss;
-//    }
-
-
-//    void assignResidualId(LandmarkId lm_id, ResidualId res_id, CameraId cam_id) {
-//        residual_ids[lm_id][cam_id] = res_id;
-//    }
-
-//    void resetResidualIds() {
-//        residual_ids.clear();
-//    }
-
-//    void evaluateResiduals(std::shared_ptr<ceres::Problem> problem) {
-//        // get residuals ids
-//        std::vector<ResidualId> block_ids;
-//        std::vector<LandmarkId> lm_ids;
-//        for (const auto& lm_camresid : residual_ids) {
-//            for (const auto& cam_resid : lm_camresid.second) {
-//                // only add residual of first camera
-//                block_ids.push_back(cam_resid.second);
-//                lm_ids.push_back(lm_camresid.first);
-//                break;
-//            }
-//        }
-
-//        // evaluate with and wihtout robust loss function
-//        ceres::Problem::EvaluateOptions eval_options;
-//        eval_options.residual_blocks = block_ids;
-
-//        std::vector<double> residuals_without_loss;
-//        eval_options.apply_loss_function = false;
-//        double cost = -1.;
-//        problem->Evaluate(eval_options, &cost, &residuals_without_loss, nullptr, nullptr);
-
-//        std::vector<double> residuals_with_loss;
-//        eval_options.apply_loss_function = true;
-//        problem->Evaluate(eval_options, &cost, &residuals_with_loss, nullptr, nullptr);
-
-//        // store residuals on landmarks
-//        assert(lm_ids.size() == block_ids.size() &&
-//               2 * lm_ids.size() == residuals_without_loss.size() &&
-//               2 * lm_ids.size() == residuals_with_loss.size());
-//        TimestampNSec cur_stamp = getKeyframe();
-//        for (int i = 0; i < int(lm_ids.size()); ++i) {
-//            residual_history_[lm_ids].assignResiduals(m.first,
-//                                                      res_id_reprojection,
-//                                                      cam_id_meas.first,
-//                                                      residuals_with_loss[i],
-//                                                      residuals_without_loss[i]);
-//        }
-//    }
-
-//    std::map<LandmarkId, std::map<CameraId, std::vector<ResidualId>>> residual_ids;
-//};
 
 struct Landmark {
     using Ptr = std::shared_ptr<Landmark>;
@@ -103,52 +51,26 @@ struct Landmark {
     /**
      * @brief Landmark, empty constructor for use with map
      */
-    Landmark() {
-        ;
-    }
+    Landmark();
     /**
      * @brief Landmark, constructor for interface with eigen
      * @param p, position
      * @param has_depth, flag if depth is observed or if it is a triangulated landmark from mono
      */
-    Landmark(Eigen::Vector3d p, bool has_depth = false) : has_measured_depth(has_depth) {
-        pos[0] = p[0];
-        pos[1] = p[1];
-        pos[2] = p[2];
-    }
+    Landmark(const Eigen::Vector3d& p, bool has_depth = false);
     std::array<double, 3> pos; ///< position of the landmark, x,y,z
     //    std::array<double, 3> unc; ///< uncertainty of the landmark in x,y,z direction
 
     bool has_measured_depth{false}; ///< flag if depth was observed
+    bool is_ground_plane{false};    ///< flag for ground plane points
 
     double weight{1.}; ///< weight for landmark, can be set by covariance, label, ...
 };
 
-namespace {
-Pose convert(const EigenPose& p) {
-    Eigen::Quaterniond q(p.rotation());
-    // why does q.normalize() not work?
-    Pose pose;
-    pose[0] = q.w();
-    pose[1] = q.x();
-    pose[2] = q.y();
-    pose[3] = q.z();
+Pose convert(EigenPose p);
 
-    pose[4] = p.translation()[0];
-    pose[5] = p.translation()[1];
-    pose[6] = p.translation()[2];
-
-    return pose;
-}
-
-// These functions are currently unused.
-TimestampSec convert(const TimestampNSec& ts) {
-    return static_cast<TimestampSec>(ts * 1e-09);
-}
-
-TimestampNSec convert(const TimestampSec& ts) {
-    return static_cast<TimestampNSec>(ts * 1e09);
-}
+TimestampSec convert(const TimestampNSec& ts);
+TimestampNSec convert(const TimestampSec& ts);
 
 template <typename T>
 Eigen::Transform<T, 3, Eigen::Isometry> convert(const T* const pose) {
@@ -164,7 +86,6 @@ template <typename T>
 Eigen::Transform<T, 3, Eigen::Isometry> convert(const std::array<T, 7>& pose) {
     return convert(pose.data());
 }
-}
 
 /**
  * @brief The Camera struct; save camera calibration with extrinsics and intrinsics
@@ -172,42 +93,26 @@ Eigen::Transform<T, 3, Eigen::Isometry> convert(const std::array<T, 7>& pose) {
 struct Camera {
     using Ptr = std::shared_ptr<Camera>;
 
-    Camera(double f, Eigen::Vector2d pp, EigenPose pose_cam_veh) : focal_length(f), principal_point(pp) {
-        pose_camera_vehicle = convert(pose_cam_veh);
-        intrin_inv = getIntrinsicMatrix().inverse();
-    }
+    Camera(double f, const Eigen::Vector2d& pp, const EigenPose& pose_cam_veh);
 
     /**
      * @brief getIntrinsicMatrix, convenience function to acces intrinsics as matrix
      * @return intrinsics as Eigen Matrix
      */
-    Eigen::Matrix3d getIntrinsicMatrix() const {
-        Eigen::Matrix3d intrin;
-        intrin << focal_length, 0., principal_point[0], 0., focal_length, principal_point[1], 0., 0., 1.;
-        return intrin;
-    }
+    Eigen::Matrix3d getIntrinsicMatrix() const;
 
     /**
      * @brief getEigenPose, convenience function to get eigen pose from array
      * @return eigen format of poses
      */
-    EigenPose getEigenPose() const {
-        return convert(pose_camera_vehicle);
-    }
+    EigenPose getEigenPose() const;
 
     /**
      * @brief getViewingRay, convenience function to convert a measurement to a viewing ray
      * @param m, measruement u,v
      * @return viewing ray with norm 1.
      */
-    Eigen::Vector3d getViewingRay(const Measurement& m) {
-        Eigen::Vector3d meas_hom{m.u, m.v, 1.};
-
-        meas_hom = intrin_inv * meas_hom;
-        meas_hom.normalize();
-
-        return meas_hom;
-    }
+    Eigen::Vector3d getViewingRay(const Measurement& m);
 
     double focal_length;             ///< focal length
     Eigen::Vector2d principal_point; ///< principal point
@@ -217,15 +122,6 @@ struct Camera {
                                 ///
     Eigen::Matrix3d intrin_inv; ///< inverse intrinsics for ray calculation
 };
-
-//#include <matches_msg_ros/MatchesMsg.h>
-/////@brief define forward declaration as matchesMsg
-///// taken from
-/// https://stackoverflow.com/questions/18834645/c-forward-declaration-and-alias-with-using-or-typedef
-// struct Tracklets : MatchesMsg {
-//    using MatchesMsg::MatchesMsg; // inherit constructors
-//};
-
 
 template <typename T, size_t n>
 void print_array(const std::array<T, n>& a) {
@@ -252,4 +148,24 @@ Eigen::Matrix<T, n, 1> convert_array_to_eigen(const std::array<T, n>& v) {
     }
     return out;
 }
+
+template <typename T>
+Eigen::Vector2d reproject(const T& transform_1_0, const Eigen::Matrix3d& intrin, const Eigen::Vector3d& lm_0) {
+    Eigen::Vector3d tmp_1 = intrin * (transform_1_0 * lm_0);
+    return tmp_1.colwise().hnormalized();
 }
+
+double calcRotRoccMetric(const Eigen::Isometry3d& transform_1_0,
+                         const Eigen::Matrix3d& intrinsics,
+                         const Eigen::Vector3d& lm_0,
+                         const Eigen::Vector2d& measurement_1);
+
+double getCost(const std::vector<ResidualId>& ids, ceres::Problem& problem);
+
+double getCost(const std::map<ResidualId, std::pair<LandmarkId, int>>& ids, ceres::Problem& problem);
+
+Eigen::Matrix<double, 3, 1> convertMeasurementToRay(const Eigen::Matrix3d& intrin_inv, const Measurement& m);
+
+double calcQuaternionDiff(const Pose& p0, const Pose& p1);
+
+} // end of namespace

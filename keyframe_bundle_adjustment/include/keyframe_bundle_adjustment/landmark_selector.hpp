@@ -20,6 +20,7 @@
 #include <tuple>
 #include <vector>
 
+#include <type_traits>
 #include "keyframe.hpp"
 #include "landmark_selection_schemes.hpp"
 #include "internal/definitions.hpp"
@@ -60,7 +61,54 @@ public: // public methods
     * @param scheme
     */
     void addScheme(LandmarkSelectionSchemeBase::ConstPtr scheme) {
-        schemes_.push_back(scheme);
+        selection_schemes_.push_back(scheme);
+    }
+    void addScheme(LandmarkSparsificationSchemeBase::ConstPtr scheme) {
+        sparsification_schemes_.push_back(scheme);
+    }
+    void addScheme(LandmarkRejectionSchemeBase::ConstPtr scheme) {
+        rejection_schemes_.push_back(scheme);
+    }
+
+    template <typename T>
+    std::set<LandmarkId> getSelection(std::shared_ptr<const T> scheme,
+                                      const std::map<LandmarkId, Landmark::ConstPtr>& selected_lms,
+                                      const std::map<KeyframeId, Keyframe::ConstPtr>& kfs) {
+        if (!std::is_base_of<LandmarkSchemeBase, T>::value) {
+            throw std::runtime_error("In landmark_selector: Scheme does not inherit from base.");
+        }
+        // Get selection for current scheme.
+        std::set<LandmarkId> cur_selection;
+        auto categorizer_scheme = std::dynamic_pointer_cast<const LandmarkCategorizatonInterface>(scheme);
+        if (categorizer_scheme == nullptr) {
+            cur_selection = scheme->getSelection(selected_lms, kfs);
+        } else {
+            // If the scheme is a Categorizer save categories
+            // we have only one categorizer implemented yet, so we can copy
+            ///@todo if more are implemented, make a logic to fuse categories
+            landmark_categories_ = categorizer_scheme->getCategorizedSelection(selected_lms, kfs);
+
+            // make set
+            for (const auto& el : landmark_categories_) {
+                cur_selection.insert(el.first);
+            }
+        }
+        return cur_selection;
+    }
+
+    void addToMap(const std::map<LandmarkId, Landmark::ConstPtr>& landmarks,
+                  const std::set<LandmarkId>& cur_selection,
+                  std::map<LandmarkId, Landmark::ConstPtr>& selected_lms) {
+        // push selected items to map and select with next scheme
+        for (const auto& id : cur_selection) {
+            if (landmarks.find(id) != landmarks.cend()) {
+                selected_lms[id] = landmarks.at(id);
+            } else {
+                // This can happen if landmarks are rejected before but still saved on keyframes as measruements.
+                // For example LandmarkSelectionSchemeAddDepth may add them again.
+                std::cout << "LandmarkSelector: Attention! Id=" << id << " is not in landmarks." << std::endl;
+            }
+        }
     }
 
     /**
@@ -71,56 +119,85 @@ public: // public methods
                                 const std::map<KeyframeId, Keyframe::ConstPtr>& kfs) {
 
         // init as selection
-        std::map<LandmarkId, Landmark::ConstPtr> selected_lms = landmarks;
+        std::map<LandmarkId, Landmark::ConstPtr> non_rejected_lms = landmarks;
 
         // reject outliers marked by setOutlier()
         for (const auto& id : outlier_ids_) {
-            auto it = selected_lms.find(id);
-            if (it != selected_lms.cend()) {
-                selected_lms.erase(it);
+            auto it = non_rejected_lms.find(id);
+            if (it != non_rejected_lms.cend()) {
+                non_rejected_lms.erase(it);
             }
         }
+
+        //        // Init selection as all landmarks that heven't been unselected (selected + new ones)
+        //        std::map<LandmarkId, Landmark::ConstPtr> selected_lms;
+
+        //        for (const auto& el : landmarks) {
+        //            const auto& id = el.first;
+        //            // If id is neither unselected nor outlier, add it to possible selection.
+        //            if (unselected_lms.find(id) == unselected_lms.cend() && outlier_ids_.find(id) ==
+        //            outlier_ids_.cend()) {
+        //                selected_lms[id] = el.second;
+        //            }
+        //        }
 
         auto start_sel_schemes = std::chrono::steady_clock::now();
-        // apply selection schemes to selection
-        for (const auto& scheme : schemes_) {
-            auto start_indiv_scheme = std::chrono::steady_clock::now();
-
-            std::set<LandmarkId> cur_selection;
-            // If the scheme is a Categorizer save categories
-
-            auto categorizer_scheme = std::dynamic_pointer_cast<const LandmarkCategorizatonInterface>(scheme);
-            if (categorizer_scheme == nullptr) {
-                cur_selection = scheme->getSelection(selected_lms, kfs);
-            } else {
-                // we have only one categorizer implemented yet, so we can copy
-                ///@todo if more are implemented, make a logic to fuse categories
-                landmark_categories_ = categorizer_scheme->getCategorizedSelection(selected_lms, kfs);
-
-                // make set
-                for (const auto& el : landmark_categories_) {
-                    cur_selection.insert(el.first);
-                }
-            }
-            std::cout << "Duration lm_sel::apply_individual_scheme="
-                      << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                               start_indiv_scheme)
-                             .count()
-                      << " ms" << std::endl;
-
-            // push selected items to map and select with next scheme
-            selected_lms.clear();
-            for (const auto& id : cur_selection) {
-                if (landmarks.find(id) != landmarks.cend()) {
-                    selected_lms[id] = landmarks.at(id);
-                } else {
-                    // This can happen if landmarks are rejected before but still saved on keyframes as measruements.
-                    // For example LandmarkSelectionSchemeAddDepth may add them again.
-                    std::cout << "LandmarkSelector: Attention! Id=" << id << " is not in landmarks." << std::endl;
-                }
-            }
+        // Apply rejection schemes to all landmarks.
+        // Size of lms will decrease.
+        for (const auto& scheme : rejection_schemes_) {
+            //            auto start_indiv_scheme = std::chrono::steady_clock::now();
+            auto cur_selection = getSelection(scheme, non_rejected_lms, kfs);
+            non_rejected_lms.clear();
+            addToMap(landmarks, cur_selection, non_rejected_lms);
+            //            std::cout << "Duration lm_sel::apply individual scheme and add selected="
+            //                      <<
+            //                      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()
+            //                      -
+            //                                                                               start_indiv_scheme)
+            //                             .count()
+            //                      << " ms" << std::endl;
         }
-        std::cout << "Duration lm_sel::apply_sel_schemes="
+
+        // From the non rejected ones get those that must be included.
+        // Size of lms will increase.
+        std::map<LandmarkId, Landmark::ConstPtr> selected_lms;
+        for (const auto& scheme : selection_schemes_) {
+            //            auto start_indiv_scheme = std::chrono::steady_clock::now();
+            //            auto cur_selection = getSelection(scheme, non_rejected_lms, kfs);
+            auto cur_selection = getSelection(scheme, non_rejected_lms, kfs);
+            addToMap(non_rejected_lms, cur_selection, selected_lms);
+            //            std::cout << "Duration lm_sel::apply individual scheme and add selected="
+            //                      <<
+            //                      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()
+            //                      -
+            //                                                                               start_indiv_scheme)
+            //                             .count()
+            //                      << " ms" << std::endl;
+        }
+
+        // From the non rejected ones, sparsify.
+        // Size of lms will decrease.
+        std::map<LandmarkId, Landmark::ConstPtr> sparsified_lms = non_rejected_lms;
+        for (const auto& scheme : sparsification_schemes_) {
+            //            auto start_indiv_scheme = std::chrono::steady_clock::now();
+            auto cur_selection = getSelection(scheme, sparsified_lms, kfs);
+            sparsified_lms.clear();
+            addToMap(non_rejected_lms, cur_selection, sparsified_lms);
+            //            std::cout << "Duration lm_sel::apply individual scheme and add selected="
+            //                      <<
+            //                      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()
+            //                      -
+            //                                                                               start_indiv_scheme)
+            //                             .count()
+            //                      << " ms" << std::endl;
+        }
+
+        // Add sparsified to selected.
+        for (const auto& el : selected_lms) {
+            sparsified_lms[el.first] = el.second;
+        }
+
+        std::cout << "Duration lm_sel::apply all selection schemes="
                   << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
                                                                            start_sel_schemes)
                          .count()
@@ -128,23 +205,17 @@ public: // public methods
 
         std::set<LandmarkId> selection;
         // takes elements from first vector, does something with it and stores it in second vector
-        std::transform(selected_lms.cbegin(),
-                       selected_lms.cend(),
+        std::transform(sparsified_lms.cbegin(),
+                       sparsified_lms.cend(),
                        std::inserter(selection, selection.end()),
                        [](const auto& a) { return a.first; });
 
-        auto start_get_non_sel = std::chrono::steady_clock::now();
         // get not selected landmarks
+        auto start_get_non_sel = std::chrono::steady_clock::now();
         std::set<LandmarkId> all_landmarks;
         for (const auto& lm : landmarks) {
             all_landmarks.insert(lm.first);
         }
-        std::cout << "Duration lm_sel::get_non_sel_lms="
-                  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                           start_get_non_sel)
-                         .count()
-                  << " ms" << std::endl;
-
         auto start_get_diff = std::chrono::steady_clock::now();
         std::set<LandmarkId> diff;
         // see https://www.fluentcpp.com/2017/01/09/know-your-algorithms-algos-on-sets/
@@ -158,11 +229,25 @@ public: // public methods
                                                                            start_get_diff)
                          .count()
                   << " ms" << std::endl;
-        // mark non selected
-        for (const auto& el : diff) {
-            markUnselected(el);
-        }
 
+        // mark non selected
+        auto it = std::max_element(kfs.cbegin(), kfs.cend(), [](const auto& a, const auto& b) {
+            return a.second->timestamp_ < b.second->timestamp_;
+        });
+        const auto& cur_ts = it->second->timestamp_;
+        for (const auto& el : diff) {
+            markUnselected(el, cur_ts);
+        }
+        clean(cur_ts - convert(10.));
+
+        std::cout << "Duration lm_sel::get_non_sel_lms="
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                           start_get_non_sel)
+                         .count()
+                  << " ms" << std::endl;
+
+        // Remember last selection.
+        last_selected_lms_ = selection;
 
         return selection;
     }
@@ -172,11 +257,20 @@ public: // public methods
      * certain count)
      * @param lm_id, landmark id that shall be unselected
      */
-    void markUnselected(LandmarkId lm_id) {
-        if (unselected_lms.find(lm_id) == unselected_lms.cend()) {
-            unselected_lms[lm_id] = 1;
-        } else {
-            unselected_lms.at(lm_id)++;
+    void markUnselected(LandmarkId lm_id, TimestampNSec last_time_seen) {
+        unselected_lms_[lm_id] += 1;
+        last_time_seen_[lm_id] = last_time_seen;
+    }
+
+    void clean(TimestampNSec oldestTs) {
+        auto it = last_time_seen_.begin();
+        for (; it != last_time_seen_.end();) {
+            if (it->second < oldestTs) {
+                unselected_lms_.erase(it->first);
+                it = last_time_seen_.erase(it);
+            } else {
+                it = std::next(it);
+            }
         }
     }
 
@@ -185,7 +279,7 @@ public: // public methods
      * @return unselected landmarks with id and count how often they where unselected
      */
     const std::map<LandmarkId, unsigned int>& getUnselectedLandmarks() const {
-        return unselected_lms;
+        return unselected_lms_;
     }
 
     /**
@@ -194,8 +288,16 @@ public: // public methods
      *        this is empty.
      * @return Map with landmark ids and categories.
      */
-    std::map<LandmarkId, LandmarkCategorizatonInterface::Category> getLandmarkCategories() const {
+    const std::map<LandmarkId, LandmarkCategorizatonInterface::Category>& getLandmarkCategories() const {
         return landmark_categories_;
+    }
+
+    /**
+     * @brief getLastSelection, get last selection, f.e. for pose only estimation.
+     * @return last set of landmarks that was produced by select.
+     */
+    std::set<LandmarkId> getLastSelection() const {
+        return last_selected_lms_;
     }
 
     void clearOutliers() {
@@ -216,9 +318,11 @@ public: // public methods
         }
     }
 
-private:                                               // attributes
-    std::map<LandmarkId, unsigned int> unselected_lms; ///< save which landmarks where not selected
+private:                                                // attributes
+    std::map<LandmarkId, unsigned int> unselected_lms_; ///< save which landmarks where not selected
     /// and count how often they were unseletected
+    std::map<LandmarkId, TimestampNSec> last_time_seen_; ///< save last time lm was unselected
+    std::set<LandmarkId> last_selected_lms_;             ///< save which landmarks where not selected
 
     std::map<LandmarkId, LandmarkCategorizatonInterface::Category> landmark_categories_;
 
@@ -230,8 +334,13 @@ private:                                               // attributes
         26  // vehicle
     };
 
-public:                                                          // attributes
-    std::vector<LandmarkSelectionSchemeBase::ConstPtr> schemes_; ///< schemes that are used for landmark selection
-    std::set<LandmarkId> outlier_ids_;                           ///< ids of outliers
+public: // attributes
+    std::vector<LandmarkSelectionSchemeBase::ConstPtr>
+        selection_schemes_; ///< schemes that select landmarks that will definitely be taken.
+    std::vector<LandmarkSparsificationSchemeBase::ConstPtr>
+        sparsification_schemes_; ///< schemes that sparsifiy all landmarks that are left.
+    std::vector<LandmarkRejectionSchemeBase::ConstPtr>
+        rejection_schemes_;            ///< schemes non selected lms will definitely not be taken.
+    std::set<LandmarkId> outlier_ids_; ///< ids of outliers
 };
 }

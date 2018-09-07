@@ -53,7 +53,8 @@ public:
              std::map<CameraId, Camera::Ptr> cameras,
              std::map<LandmarkId, CameraIds> landmark_to_cameras,
              EigenPose p,
-             FixationStatus fix_stat = FixationStatus::None);
+             FixationStatus fix_stat = FixationStatus::None,
+             Plane ground_plane = Plane());
 
     /**
      * @brief Keyframe constructor, mono
@@ -68,7 +69,8 @@ public:
              const Tracklets& tracklets,
              Camera::Ptr camera,
              EigenPose p,
-             FixationStatus fix_stat = FixationStatus::None);
+             FixationStatus fix_stat = FixationStatus::None,
+             Plane ground_plane = Plane());
 
     /**
      * @brief operator <, assort by timestamp, usefull for sets
@@ -178,6 +180,9 @@ public:
 
     ///@brief pose from keyframe to origin
     Pose pose_;
+
+    ///@brief groundplane parameters around keyframe
+    Plane local_ground_plane_;
 
     ///@brief storage for measurement, identified by landmark ids
     std::map<LandmarkId, std::map<CameraId, Measurement>> measurements_;

@@ -19,7 +19,7 @@ namespace {
  * @param lm
  * @return
  */
-bool is_landmark_cheiral(const LandmarkSelectionSchemeBase::KeyframeMap& keyframes,
+bool is_landmark_cheiral(const LandmarkSchemeBase::KeyframeMap& keyframes,
                          const std::pair<LandmarkId, Landmark::ConstPtr>& lm) {
     for (const auto& id_kf : keyframes) {
         const auto& kf = id_kf.second;
@@ -36,9 +36,8 @@ bool is_landmark_cheiral(const LandmarkSelectionSchemeBase::KeyframeMap& keyfram
 }
 }
 
-std::set<LandmarkId> LandmarkSelectionSchemeCheirality::getSelection(
-    const LandmarkSelectionSchemeBase::LandmarkMap& landmarks,
-    const LandmarkSelectionSchemeBase::KeyframeMap& keyframes) const {
+std::set<LandmarkId> LandmarkRejectionSchemeCheirality::getSelection(
+    const LandmarkSchemeBase::LandmarkMap& landmarks, const LandmarkSchemeBase::KeyframeMap& keyframes) const {
 
     std::set<LandmarkId> out;
     auto start_time_cheriality = std::chrono::steady_clock::now();
@@ -60,12 +59,12 @@ std::set<LandmarkId> LandmarkSelectionSchemeCheirality::getSelection(
     return out;
 }
 
-LandmarkSelectionSchemeBase::ConstPtr LandmarkSelectionSchemeCheirality::createConst() {
-    return LandmarkSelectionSchemeBase::ConstPtr(new LandmarkSelectionSchemeCheirality());
+LandmarkRejectionSchemeBase::ConstPtr LandmarkRejectionSchemeCheirality::createConst() {
+    return LandmarkRejectionSchemeBase::ConstPtr(new LandmarkRejectionSchemeCheirality());
 }
 
-LandmarkSelectionSchemeBase::Ptr LandmarkSelectionSchemeCheirality::create() {
+LandmarkRejectionSchemeBase::Ptr LandmarkRejectionSchemeCheirality::create() {
 
-    return LandmarkSelectionSchemeBase::Ptr(new LandmarkSelectionSchemeCheirality());
+    return LandmarkRejectionSchemeBase::Ptr(new LandmarkRejectionSchemeCheirality());
 }
 }

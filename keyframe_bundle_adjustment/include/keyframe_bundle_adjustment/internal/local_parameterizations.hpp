@@ -8,7 +8,12 @@
 
 #pragma once
 #include <array>
+#include <Eigen/Eigen>
+#include <ceres/autodiff_local_parameterization.h>
+#include <ceres/local_parameterization.h>
 #include <ceres/rotation.h>
+
+#include "definitions.hpp"
 
 namespace keyframe_bundle_adjustment {
 namespace local_parameterizations {
@@ -127,8 +132,8 @@ struct FullDofsPlus {
  * For global cos that could be a problem if the reference pose is not at zero, middle of shpere
  * should lie in last pose->optimise motion not pose?
  */
-struct FixScaleVectorPlus2 {
-    FixScaleVectorPlus2(double scale = 1.) : scale_(scale) {
+struct FixScaleVectorPlus {
+    FixScaleVectorPlus(double scale = 1.) : scale_(scale) {
         ;
     }
     /**
@@ -159,50 +164,65 @@ struct FixScaleVectorPlus2 {
     double scale_; ///< scale of the vector
 };
 
-
 /**
  * @brief plus operator for local parametrization
  */
-struct CircularMotionPlus {
+struct CircularMotionPlus2d {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    CircularMotionPlus2d() = default;
     /**
     * @brief plus functor, x is input state, delta is how varibales propagate to state, x_plus_delta
     * is the result
-     * @param delta: pitch, yaw, roll, arc_length (angles around x,y,z axes)
+     * @param delta:  yaw, arc_length (angle around z axiss)
      * @param x: quaternion[0:4], x, y, z
      */
     template <typename T>
     bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
-        // default values for dx and dy
-        T dx = delta[3];
+        using Transf = Eigen::Transform<T, 3, Eigen::Isometry>;
+
+        // Add delta as yaw and arc length
+        T yaw = delta[0];
+        T arc = delta[1];
+
+        // Calculate pose on circle from ref to current.
+        // default values for dx and dy when yaw=0.
+        T dx = arc;
         T dy = T(0.);
 
         // if yaw is not zero, dx and dy can be calculated by curvature
-        if (ceres::abs(delta[1]) > T(0.001)) {
-            dx = ceres::sin(delta[1]) / delta[1] * delta[3];
-            dy = (T(1.) - ceres::cos(delta[1])) / delta[1] * delta[3];
+        if (ceres::abs(yaw) > T(0.001)) {
+            T radius = arc / yaw;
+            dx = radius * ceres::sin(yaw);
+            dy = radius * (T(1.) - ceres::cos(yaw));
         }
 
-        // get quaternion from euler angles
-        std::array<T, 4> q;
-        EulerAnglesToQuaternion(delta, q.data());
+        Transf delta_pose = Transf::Identity();
+        delta_pose.translation()[0] = dx;
+        delta_pose.translation()[1] = dy;
+        delta_pose.translation()[2] = T(0.);
 
-        // propagate rotations
-        std::array<T, 4> out_rot;
-        ceres::QuaternionProduct(x, q.data(), out_rot.data());
+        Eigen::Matrix<T, 3, 3> rot_mat =
+            (Eigen::AngleAxis<T>(yaw, Eigen::Matrix<T, 3, 1>(T(0.), T(0.), T(1.)))).toRotationMatrix();
+        delta_pose.linear() = rot_mat;
+
+        Transf pose_x_origin = convert(x);
+        Transf out = delta_pose * pose_x_origin;
+        Eigen::Quaternion<T> q(out.rotation());
 
         // add it to output
-        x_plus_delta[0] = out_rot[0];
-        x_plus_delta[1] = out_rot[1];
-        x_plus_delta[2] = out_rot[2];
-        x_plus_delta[3] = out_rot[3];
-        //        x_plus_delta[4] = x[4] + dx;
-        //        x_plus_delta[5] = x[5] + dy;
-        //        x_plus_delta[6] = x[6] + T(0.);
-        x_plus_delta[4] = x[4] + dy;
-        x_plus_delta[5] = x[5] + T(0.);
-        x_plus_delta[6] = x[6] + dx;
+        x_plus_delta[0] = q.w();
+        x_plus_delta[1] = q.x();
+        x_plus_delta[2] = q.y();
+        x_plus_delta[3] = q.z();
+        x_plus_delta[4] = out.translation().x();
+        x_plus_delta[5] = out.translation().y();
+        x_plus_delta[6] = out.translation().z();
 
         return true;
+    }
+
+    static ceres::LocalParameterization* Create() {
+        return new ceres::AutoDiffLocalParameterization<CircularMotionPlus2d, 7, 2>(new CircularMotionPlus2d());
     }
 };
 

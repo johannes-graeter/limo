@@ -14,3 +14,4 @@
 #include "internal/landmark_selection_scheme_observability.hpp"
 #include "internal/landmark_selection_scheme_random.hpp"
 #include "internal/landmark_selection_scheme_voxel.hpp"
+#include "internal/landmark_selection_scheme_dimension_plausibility.hpp"

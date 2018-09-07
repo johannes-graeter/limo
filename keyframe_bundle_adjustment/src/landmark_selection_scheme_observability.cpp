@@ -49,8 +49,8 @@ void addVec(const LmIdVec& vec_to_add, LmIdVec& vec) {
 }
 } // end of anonymous namespace
 
-std::set<LandmarkId> LandmarkSelectionSchemeObservability::getSelection(const LandmarkMap& landmarks,
-                                                                        const KeyframeMap& keyframes) const {
+std::set<LandmarkId> LandmarkSparsificationSchemeObservability::getSelection(const LandmarkMap& landmarks,
+                                                                             const KeyframeMap& keyframes) const {
     auto categorized_lms = getCategorizedSelection(landmarks, keyframes);
     std::set<LandmarkId> out;
 
@@ -60,24 +60,22 @@ std::set<LandmarkId> LandmarkSelectionSchemeObservability::getSelection(const La
     return out;
 }
 
-std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelectionSchemeObservability::
+std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSparsificationSchemeObservability::
     getCategorizedSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const {
-
-    auto start_calc_angles = std::chrono::steady_clock::now();
     // Convert to ids.
     std::vector<LandmarkId> lm_ids;
     lm_ids.reserve(landmarks.size());
     for (const auto& el : landmarks) {
         lm_ids.push_back(el.first);
     }
-    std::map<LandmarkId, double> map_data = landmark_helpers::calcMeanFlow(lm_ids, keyframes);
-    std::cout << "Duration lm_sel::scheme_obs::calc_angles="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_calc_angles)
-                     .count()
-              << " ms" << std::endl;
+    std::map<LandmarkId, double> map_data = landmark_helpers::calcFlow(lm_ids, keyframes);
+    for (auto& el : map_data) {
+        el.second = std::abs(el.second);
+    }
+    auto it = std::max_element(
+        map_data.cbegin(), map_data.cend(), [](const auto& a, const auto& b) { return a.second < b.second; });
+    const double& max_flow = it->second;
 
-    auto start_sort_lms = std::chrono::steady_clock::now();
     // split landmarks in 3 bins + 2 rest bins
     // so we have bins: lower outliers, bin1, bin2, bin3 ,upper outliers
     // bin.first is the lower boundary of the bin
@@ -94,22 +92,21 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
     std::vector<LandmarkId> near_ids_with_depth;
     std::vector<LandmarkId> middle_ids_with_depth;
 
-    auto start_make_lm_sets = std::chrono::steady_clock::now();
     for (const auto& lm_id_vec : landmarks) {
         const auto& lm_id = lm_id_vec.first;
         const auto& cur_data = map_data.at(lm_id);
 
         if (lm_id_vec.second->has_measured_depth) {
-            assignMeasure(params_.bin_params_.bound_near_middle,
-                          params_.bin_params_.bound_middle_far,
+            assignMeasure(params_.bin_params_.bound_near_middle * max_flow,
+                          params_.bin_params_.bound_middle_far * max_flow,
                           cur_data,
                           lm_id,
                           near_ids_with_depth,
                           middle_ids_with_depth,
                           far_ids);
         } else {
-            assignMeasure(params_.bin_params_.bound_near_middle,
-                          params_.bin_params_.bound_middle_far,
+            assignMeasure(params_.bin_params_.bound_near_middle * max_flow,
+                          params_.bin_params_.bound_middle_far * max_flow,
                           cur_data,
                           lm_id,
                           near_ids,
@@ -123,13 +120,6 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
               << "num middle without depth=" << middle_ids.size() << "\n"
               << "num far with/without depth=" << far_ids.size() << std::endl;
 
-    std::cout << "Duration lm_sel::scheme_obs::copy ids to lm sets="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_make_lm_sets)
-                     .count()
-              << " ms" << std::endl;
-
-    auto start_choose_near = std::chrono::steady_clock::now();
     std::vector<LandmarkId> chosen_ids_near;
     {
         // near: measruements with biggest angles
@@ -143,13 +133,7 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
 
         addVec(chosen_ids_near_wo_depth, chosen_ids_near);
     }
-    std::cout << "Duration lm_sel::scheme_obs::choose_near="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_choose_near)
-                     .count()
-              << " ms" << std::endl;
 
-    auto start_choose_middle = std::chrono::steady_clock::now();
     std::vector<LandmarkId> chosen_ids_middle;
     {
         // middle: random
@@ -163,25 +147,11 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
 
         addVec(chosen_ids_middle_wo_depth, chosen_ids_middle);
     }
-    std::cout << "Duration lm_sel::scheme_obs::choose_middle"
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_choose_middle)
-                     .count()
-              << " ms" << std::endl;
 
 
-    auto start_choose_far = std::chrono::steady_clock::now();
     // Choose far ids
     std::vector<LandmarkId> chosen_ids_far =
         landmark_helpers::chooseFarLmIds(params_.bin_params_.max_num_landmarks_far, far_ids, keyframes);
-
-    std::cout << "Duration lm_sel::scheme_obs::choose_far="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_choose_far)
-                     .count()
-              << " ms" << std::endl;
-
-    auto start_out = std::chrono::steady_clock::now();
 
     std::map<LandmarkId, LandmarkCategorizatonInterface::Category> out;
     // write the chosen lms to selection
@@ -194,27 +164,17 @@ std::map<LandmarkId, LandmarkCategorizatonInterface::Category> LandmarkSelection
     for (const auto& el : chosen_ids_far) {
         out[el] = LandmarkCategorizatonInterface::Category::FarField;
     }
-    std::cout
-        << "Duration lm_sel::scheme_obs::write_to_sets="
-        << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_out).count()
-        << " ms" << std::endl;
-
-    std::cout << "Duration lm_sel::scheme_obs::sort_lms="
-              << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                       start_sort_lms)
-                     .count()
-              << " ms" << std::endl;
 
     return out;
 }
 
-LandmarkSelectionSchemeBase::ConstPtr LandmarkSelectionSchemeObservability::createConst(Parameters p) {
+LandmarkSparsificationSchemeBase::ConstPtr LandmarkSparsificationSchemeObservability::createConst(Parameters p) {
 
-    return LandmarkSelectionSchemeBase::ConstPtr(new LandmarkSelectionSchemeObservability(p));
+    return LandmarkSparsificationSchemeBase::ConstPtr(new LandmarkSparsificationSchemeObservability(p));
 }
 
-LandmarkSelectionSchemeBase::Ptr LandmarkSelectionSchemeObservability::create(Parameters p) {
+LandmarkSparsificationSchemeBase::Ptr LandmarkSparsificationSchemeObservability::create(Parameters p) {
 
-    return LandmarkSelectionSchemeBase::Ptr(new LandmarkSelectionSchemeObservability(p));
+    return LandmarkSparsificationSchemeBase::Ptr(new LandmarkSparsificationSchemeObservability(p));
 }
 }
