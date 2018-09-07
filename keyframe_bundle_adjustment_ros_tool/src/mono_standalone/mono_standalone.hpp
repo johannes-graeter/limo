@@ -10,6 +10,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <matches_msg_ros/MatchesMsg.h>
+#include <matches_msg_depth_ros/MatchesMsgWithOutlierFlag.h>
 #include <sensor_msgs/CameraInfo.h>
 
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
@@ -35,11 +36,10 @@ class MonoStandalone {
     using ReconfigureConfig = MonoStandaloneConfig;
     using ReconfigureServer = dynamic_reconfigure::Server<ReconfigureConfig>;
 
-    using TrackletsMsg = matches_msg_ros::MatchesMsg;
+    using TrackletsMsg = matches_msg_depth_ros::MatchesMsgWithOutlierFlag;
     using CameraInfoMsg = sensor_msgs::CameraInfo;
 
-    using ApproximateTime =
-        message_filters::sync_policies::ApproximateTime<TrackletsMsg, CameraInfoMsg>;
+    using ApproximateTime = message_filters::sync_policies::ApproximateTime<TrackletsMsg, CameraInfoMsg>;
     using Synchronizer = message_filters::Synchronizer<ApproximateTime>;
 
 public:
@@ -88,10 +88,12 @@ private:
     ///
     keyframe_bundle_adjustment::KeyframeSelector keyframe_selector_;
 
-    Eigen::Isometry3d
-        motion_prior_camera_t0_t1; ///< save prior, so that if 5 point fails, we still have a prior
+    //    Eigen::Isometry3d motion_camera_t0_t1; ///< save prior, so that if 5 point fails, we still have a prior
 
     Eigen::Isometry3d trf_camera_vehicle; ///< extrinsic calibraion of camera defined from vechicle
                                           /// frame to camera frame
+                                          ///
+    double last_ts_solved_{-10000000000}; ///< Last timestamp when bundle_adjuster_.solve was called, negative, so ba is
+                                          ///called quickly at init.
 };
 } // namespace keyframe_bundle_adjustment_ros_tool

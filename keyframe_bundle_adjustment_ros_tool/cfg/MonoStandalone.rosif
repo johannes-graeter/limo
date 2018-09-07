@@ -50,11 +50,12 @@ gen.add("tf_child_frame_id", paramtype='std::string', description="child frame i
 
 # Publisher and subscriber (group name will show up in dynamic_reconfigure window)
 pub_sub = gen.add_group("Publisher and subscriber")
-pub_sub.add_subscriber("tracklets_subscriber", message_type="matches_msg_ros::MatchesMsg", description="subscriber for tracklets from one camera", default_topic="in_topic", no_delay=True, configurable=False)
+pub_sub.add_subscriber("tracklets_subscriber", message_type="matches_msg_depth_ros::MatchesMsgWithOutlierFlag", description="subscriber for tracklets from one camera", default_topic="in_topic", no_delay=True, configurable=False)
 pub_sub.add_subscriber("camera_info_subscriber", message_type="sensor_msgs::CameraInfo", description="subscriber for camera info", default_topic="in_topic_camera_info", no_delay=True, configurable=False)
 pub_sub.add_publisher("active_path_publisher", message_type="nav_msgs::Path", description="publish path that is actively optimized in bundle adjustment for plotting", default_topic="active_path_topic", configurable=True)
 pub_sub.add_publisher("path_publisher", message_type="nav_msgs::Path", description="publish whole path for plotting", default_topic="path_topic", configurable=True)
 pub_sub.add_publisher("landmarks_publisher", message_type="sensor_msgs::PointCloud2", description="publish landmarks in global frame", default_topic="landmarks_topic", configurable=True)
+pub_sub.add_publisher("planes_publisher", message_type="visualization_msgs::MarkerArray", description="publish estiamted local planes in global frame", default_topic="planes_topic", configurable=True)
 
 # Bundle adjustment parameters
 gen.add("max_number_landmarks_near_bin", paramtype='int', description="number of landmarks in near bin by observation delta angle", default="300", min="10", max="5000", configurable=True)
@@ -64,11 +65,21 @@ gen.add("time_between_keyframes_sec", paramtype='double', description="time in s
 gen.add("min_median_flow", paramtype='double', description="minimum median flow so that frame is accepted as keyframe, especially important for standstill", default="8.", min="0.", max="200.", configurable=True)
 gen.add("critical_rotation_difference", paramtype='double', description="if rotation between last frame and that is bigger keyframe is selected, important for curves", default="0.08", min="0.", max="1.5", configurable=True)
 
+gen.add("robust_loss_reprojection_thres", paramtype='double', description="threshold in pixels for robustifier(huber loss) for reprojection diff, from this threshold on measurements are considered as outlier", default="1.0", min="0.0001", max="10.", configurable=True)
+gen.add("min_number_connecting_landmarks", paramtype='int', description="if number of tracklets that connect first to current frame is smaller than this, we set the end of the optimization window", default="30", min="5", max="500", configurable=True)
+
+gen.add("shrubbery_weight", paramtype='double', description="Weight assigned to landmarks with label that belongs to vegetation, sky, terrain, ...", default="0.9", min="0.", max="1.", configurable=True)
+
+gen.add("outlier_rejection_quantile", paramtype='double', description="we solve the problem n times with n num_iterations and reject the (1-quantile)*100% most downweighted residuals", default="0.95", min="0.01", max="1.0", configurable=True)
+gen.add("outlier_rejection_num_iterations", paramtype='int', description="we solve the problem n times with n num_iterations and reject the (1-quantile)*100% most downweighted residuals", default="1", min="0", max="10", configurable=True)
+
+gen.add("height_over_ground", paramtype='double', description="hieght over ground from vehicle coordinate system", default="0.30", min="0.000001", max="2.0", configurable=True)
+
 # other parameters
 gen.add("show_debug_image", paramtype='bool', description="if true show measurements on keyframes in debug image", default="false", configurable=True)
 gen.add("motion_prior_ransac_probability", paramtype='double', description="success probability of ransac algrith for 5point algorithm for motino prior. determines number of iterations.", default="0.99", max="0.99999", min="0.001", configurable=True)
 gen.add("max_solver_time", paramtype='double', description="maximum solver time in seconds, use that to make it real time", default="0.2", min="0.01", max="20.0", configurable=True)
-
+gen.add("outlier_labels_yaml", paramtype='std::string', description="path to file for outlier labels", default="../res/outlier_labels.yaml", configurable=True)
 
 # DO NOT TOUCH THIS LINE
 #Syntax : Package, Node, Config Name(The final name will be MonoStandaloneConfig)

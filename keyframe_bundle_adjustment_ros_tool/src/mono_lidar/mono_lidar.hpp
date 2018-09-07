@@ -20,6 +20,11 @@
 
 #include "keyframe_bundle_adjustment_ros_tool/MonoLidarInterface.h"
 
+// Forward declaration camera model;
+namespace image_geometry {
+class PinholeCameraModel;
+}
+
 namespace keyframe_bundle_adjustment_ros_tool {
 
 class MonoLidar {
@@ -83,11 +88,21 @@ private:
      */
     void maybeSendPoseTf(ros::Time timestamp, Eigen::Isometry3d pose);
 
-    Eigen::Isometry3d motion_prior_camera_t0_t1; ///< save prior, so that if 5 point fails, we still have a prior
+    /**
+     * @brief getPrior, get prior from keyframe to origin (according to our convention).
+     * @param model, camera model
+     * @param tracklets
+     * @return
+     */
+    Eigen::Isometry3d getPrior(const image_geometry::PinholeCameraModel& model,
+                               const ros::Time& cur_ts_ros,
+                               const keyframe_bundle_adjustment::Tracklets& tracklets);
 
-    Eigen::Isometry3d trf_camera_vehicle; ///< extrinsic calibraion of camera defined from vechicle
-                                          /// frame to camera frame
-                                          
-    ros::Time last_ts_solved_{0.0}; ///< Last timestamp when bundle_adjuster_.solve was called
+private:                                       // attributes
+    Eigen::Isometry3d trf_camera_vehicle;      ///< extrinsic calibraion of camera defined from vechicle
+                                               /// frame to camera frame
+    Eigen::Isometry3d last_pose_origin_camera; ///< Last pose
+    Eigen::Isometry3d accumulated_motion;      ///< Accumulated motion
+    ros::Time last_ts_solved_{0.0};            ///< Last timestamp when bundle_adjuster_.solve was called
 };
 } // namespace keyframe_bundle_adjustment_ros_tool

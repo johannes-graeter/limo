@@ -3,12 +3,18 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <Eigen/Eigen>
+
+#include <chrono>
+#include <cv.hpp>
 #include <image_geometry/pinhole_camera_model.h>
+#include <nav_msgs/Path.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include <commons/color_by_index_hsv.hpp>
+#include <opencv2/core/eigen.hpp> //attention, eigen must be icluded before that!
 
 #include <commons/general_helpers.hpp>
 #include <commons/publish_helpers.hpp>
-
-#include <yaml-cpp/yaml.h>
 
 #include <matches_msg_conversions_ros/convert.hpp>
 
@@ -67,65 +73,24 @@ MonoLidar::MonoLidar(ros::NodeHandle nh_public, ros::NodeHandle nh_private)
         trf_camera_vehicle = Eigen::Isometry3d::Identity();
     }
     ROS_DEBUG_STREAM("MonoLidar: Transform from vehicle to camera frame=\n" << trf_camera_vehicle.matrix());
+    last_pose_origin_camera = Eigen::Isometry3d::Identity();
+    accumulated_motion = Eigen::Isometry3d::Identity();
 
     rosinterface_handler::showNodeInfo();
 }
 
 MonoLidar::~MonoLidar() {
     // On shutdown write doen hole pointcloud and all poses.
-    std::stringstream ss;
-    ss << "/tmp/mono_lidar_map_dump.yaml";
-    std::ofstream file(ss.str().c_str());
-    file.precision(12);
-
-    file << "landmarks with depth: [";
-    for (const auto& id_lm_ptr : bundle_adjuster_->landmarks_) {
-        if (id_lm_ptr.second->has_measured_depth) {
-            file << "[" << id_lm_ptr.second->pos[0] << ", " << id_lm_ptr.second->pos[1] << ", "
-                 << id_lm_ptr.second->pos[2] << ", " << id_lm_ptr.second->weight << "],\n";
-        }
-    }
-    file << "]\n";
-
-    file << "landmarks without depth: [";
-    for (const auto& id_lm_ptr : bundle_adjuster_->landmarks_) {
-        if (!id_lm_ptr.second->has_measured_depth) {
-            file << "[" << id_lm_ptr.second->pos[0] << ", " << id_lm_ptr.second->pos[1] << ", "
-                 << id_lm_ptr.second->pos[2] << ", " << id_lm_ptr.second->weight << "],\n";
-        }
-    }
-    file << "]\n";
-
-
-    file << "poses: {";
-    for (const auto& id_kf_ptr : bundle_adjuster_->keyframes_) {
-        file << id_kf_ptr.second->timestamp_ << ": [" << id_kf_ptr.second->pose_[0] << ", "
-             << id_kf_ptr.second->pose_[1] << ", " << id_kf_ptr.second->pose_[2] << ", " << id_kf_ptr.second->pose_[3]
-             << ", " << id_kf_ptr.second->pose_[4] << ", " << id_kf_ptr.second->pose_[5] << ", "
-             << id_kf_ptr.second->pose_[6] << "],\n";
-    }
-    file << "}";
-
-    file.close();
-
-    std::cout << "--------------------------------------\nDumped map to " << ss.str()
-              << "--------------------------------------\n"
-              << std::endl;
+    helpers::dumpMap("/tmp/mono_lidar_map_dump.yaml", bundle_adjuster_);
 }
 
-// namespace {
-// double calcQuaternionDiff(const std::array<double, 7>& p0, const std::array<double, 7>& p1) {
-//    Eigen::Quaterniond q0(p0[0], p0[1], p0[2], p0[3]);
-//    Eigen::Quaterniond q1(p1[0], p1[1], p1[2], p1[3]);
-
-//    Eigen::AngleAxisd a(q1.inverse() * q0);
-//    return a.angle();
-//}
-//}
 
 void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
                                    const CameraInfoMsg::ConstPtr& camera_info_msg) {
     auto start_time = std::chrono::steady_clock::now();
+
+    std::stringstream ss;
+    ss << std::endl;
 
     image_geometry::PinholeCameraModel model;
     model.fromCameraInfo(camera_info_msg);
@@ -149,44 +114,125 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
 
     if (bundle_adjuster_->keyframes_.size() > 0) {
 
-        Eigen::Isometry3d pose_prior_origin_keyframe;
-        pose_prior_origin_keyframe.translation() = Eigen::Vector3d(1., 0., 0.);
-        pose_prior_origin_keyframe.linear() = Eigen::Matrix3d::Identity();
-        pose_prior_origin_keyframe = bundle_adjuster_->getKeyframe().getEigenPose() * pose_prior_origin_keyframe;
+        Eigen::Isometry3d pose_prior_keyframe_origin;
+
+        bool has_external_prior = (interface_.prior_vehicle_frame != "");
+        if (has_external_prior) {
+            // get pose prior to current frame
+            auto last_kf = bundle_adjuster_->getKeyframe();
+
+            ros::Time last_ts_ros;
+            last_ts_ros.fromNSec(last_kf.timestamp_);
+
+            auto start_get_pose_prior = std::chrono::steady_clock::now();
+            Eigen::Affine3d pose_prior_cur_kf, pose_prior_kf_orig;
+            pose_prior_kf_orig = last_kf.getEigenPose();
+            ROS_DEBUG_STREAM("MonoLidar: Getting prior from tf...");
+            geometry_msgs::TransformStamped motion_cur_kf;
+            try {
+                motion_cur_kf = tf_buffer_.lookupTransform(interface_.prior_vehicle_frame,
+                                                           cur_ts_ros,
+                                                           interface_.prior_vehicle_frame,
+                                                           last_ts_ros,
+                                                           interface_.prior_global_frame,
+                                                           ros::Duration(interface_.tf_waiting_time));
+            } catch (const tf2::TransformException& e) {
+                ROS_ERROR_STREAM(e.what());
+            }
+            tf2::doTransform(pose_prior_kf_orig, pose_prior_cur_kf, motion_cur_kf);
+            ss << "In MonoLidar: Duration get pose prior from tf="
+               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                        start_get_pose_prior)
+                      .count()
+               << " ms" << std::endl;
+            ROS_DEBUG_STREAM("In MonoLidar: pose_prior for kf=\n" << pose_prior_cur_kf.matrix());
+            pose_prior_keyframe_origin.translation() = pose_prior_cur_kf.translation();
+            pose_prior_keyframe_origin.linear() = pose_prior_cur_kf.rotation();
+        } else {
+            // get motion in camera frame from keyframe to current instant
+            // use 5 point algorithm and adjust translation
+            auto start_time_5_point = std::chrono::steady_clock::now();
+            Eigen::Isometry3d motion_vehicle_t1_t0 =
+                helpers::getMotionUnscaled(model.fx(),
+                                           cv::Point2d(model.cx(), model.cy()),
+                                           cur_ts_ros.toNSec(),
+                                           bundle_adjuster_->getKeyframe().timestamp_,
+                                           tracklets,
+                                           trf_camera_vehicle,
+                                           interface_.prior_speed);
+            ss << "Duration 5 point="
+               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                        start_time_5_point)
+                      .count()
+               << " ms" << std::endl;
+            auto kf_ptrs = bundle_adjuster_->getSortedActiveKeyframePtrs();
+            if (kf_ptrs.size() > 1) {
+                // Get vehicle speed from last keyframes.
+                auto r_it = kf_ptrs.crbegin();
+                auto r_it1 = std::next(r_it);
+                Eigen::Vector3d dtrans = ((*r_it)->getEigenPose() * (*r_it1)->getEigenPose().inverse()).translation();
+                double dt = keyframe_bundle_adjustment::convert((*r_it)->timestamp_) -
+                            keyframe_bundle_adjustment::convert((*r_it1)->timestamp_);
+                double speed = dtrans.norm() / dt;
+                std::cout << "speed=" << speed << std::endl;
+
+                // Scale translation according to speed
+                motion_vehicle_t1_t0.translation() =
+                    motion_vehicle_t1_t0.translation() / std::max(0.0001, motion_vehicle_t1_t0.translation().norm());
+                motion_vehicle_t1_t0.translation() =
+                    motion_vehicle_t1_t0.translation() * speed *
+                    (cur_ts_ros.toSec() - keyframe_bundle_adjustment::convert((*r_it)->timestamp_));
+            }
+            pose_prior_keyframe_origin = motion_vehicle_t1_t0 * kf_ptrs.back()->getEigenPose();
+        }
 
         // select keyframe
-        auto start_time_select_kf = std::chrono::steady_clock::now();
+        keyframe_bundle_adjustment::Plane ground_plane;
+        ground_plane.distance = interface_.height_over_ground;
         auto cur_frame = std::make_shared<keyframe_bundle_adjustment::Keyframe>(
-            cur_ts_ros.toNSec(), tracklets, camera, pose_prior_origin_keyframe);
+            cur_ts_ros.toNSec(),
+            tracklets,
+            camera,
+            pose_prior_keyframe_origin,
+            keyframe_bundle_adjustment::Keyframe::FixationStatus::None,
+            ground_plane);
 
-        std::string summary_motion_only = bundle_adjuster_->adjustPoseOnly(*cur_frame);
-        std::cout << "---------------------------- motion only ------------------------" << std::endl;
-        std::cout << summary_motion_only << std::endl;
-        pose_prior_origin_keyframe = cur_frame->getEigenPose();
+        // If the prior was without scale, adjust it.
+        if (!has_external_prior) {
+            auto start_time = std::chrono::steady_clock::now();
+            std::string summary_motion_only = bundle_adjuster_->adjustPoseOnly(*cur_frame);
+            pose_prior_keyframe_origin = cur_frame->getEigenPose();
+            std::cout << "---------------------------- motion only ------------------------" << std::endl;
+            std::cout << summary_motion_only << std::endl;
+            ss << "Duration pose only adjustment="
+               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time)
+                      .count()
+               << " ms" << std::endl;
+        }
 
-        std::cout << "----------------Deb kf ros: " << cur_ts_ros.toNSec() << " created=" << cur_frame->timestamp_
-                  << std::endl;
-
+        ROS_DEBUG_STREAM(
+            "Motion_prior=\n"
+            << (pose_prior_keyframe_origin * bundle_adjuster_->getKeyframe().getEigenPose().inverse()).matrix());
 
         ROS_DEBUG_STREAM("In MonoLidar: select frames");
+        auto start_time_select_kf = std::chrono::steady_clock::now();
         std::set<keyframe_bundle_adjustment::Keyframe::Ptr> selected_frames =
             keyframe_selector_.select({cur_frame}, bundle_adjuster_->getActiveKeyframePtrs());
         assert(selected_frames.size() < 2);
         int64_t duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
                                                                                  start_time_select_kf)
                                .count();
-
-        // Calculate difference in angles, to deactivate or not deactivate keyframes.
-        ///@todo integrate that in bundler? Better: choose a better connectivity criterium for deactivation
-        //        double angle_diff =
-        //            calcQuaternionDiff(*(cur_frame->getPosePtr()), *(bundle_adjuster_->getKeyframe().getPosePtr()));
-
-        ROS_INFO_STREAM("In MonoLidar: duration select frames=" << duration << " ms");
+        ss << "Duration select keyframes=" << duration << " ms\n";
 
         // add keyframes to bundle adjustment
+        auto start_time_push = std::chrono::steady_clock::now();
         for (const auto& kf : selected_frames) {
             bundle_adjuster_->push(*kf);
         }
+        ss << "Duration push="
+           << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_push)
+                  .count()
+           << " ms" << std::endl;
         ROS_DEBUG_STREAM("In MonoLidar: number keyframes " << bundle_adjuster_->keyframes_.size());
         ROS_INFO_STREAM("In MonoLidar: number selected keyframes " << selected_frames.size());
         ROS_INFO_STREAM("In MonoLidar: number active keyframes " << bundle_adjuster_->active_keyframe_ids_.size());
@@ -194,22 +240,14 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
         ROS_INFO_STREAM("In MonoLidar: number selected landmarks " << bundle_adjuster_->selected_landmark_ids_.size());
 
         // do bundle adjustment all interface_.time_between_keyframes
-        if (selected_frames.size() > 0 && bundle_adjuster_->keyframes_.size() > 2 &&
-            cur_ts_ros.toSec() - last_ts_solved_.toSec() > interface_.time_between_keyframes_sec) {
+        if (bundle_adjuster_->keyframes_.size() > 2 &&
+            cur_ts_ros.toSec() - last_ts_solved_.toSec() > 0.98 * interface_.time_between_keyframes_sec) {
 
             // deactivate keyframes that are not connected to the current frame
-            auto start_deactivate = std::chrono::steady_clock::now();
-
             // It is important that all keyframes shall be maintained in curves.
             // Therefore we only deactivate keyframes if the angle is not smaller than a threshold
-            //            if (angle_diff < interface_.critical_rotation_difference) {
-            bundle_adjuster_->deactivateKeyframes(interface_.min_number_connecting_landmarks);
-            //            }
-            ROS_INFO_STREAM("In MonoLidar: Duration deactivate kf="
-                            << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                                     start_deactivate)
-                                   .count()
-                            << " ms");
+            bundle_adjuster_->deactivateKeyframes(
+                interface_.min_number_connecting_landmarks, 3, interface_.max_size_optimization_window);
             bundle_adjuster_->updateLabels(tracklets, interface_.shrubbery_weight);
 
             // do optimization
@@ -217,87 +255,62 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
             std::string summary = bundle_adjuster_->solve();
             last_ts_solved_ = cur_ts_ros;
             ROS_INFO_STREAM("In MonoLidar:" << summary);
-            ROS_INFO_STREAM("In MonoLidar: Duration solve=" << std::chrono::duration_cast<std::chrono::milliseconds>(
-                                                                   std::chrono::steady_clock::now() - start_time_solve)
-                                                                   .count()
-                                                            << " ms");
+            ss << "In MonoLidar: Duration solve="
+               << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                        start_time_solve)
+                      .count()
+               << " ms" << std::endl;
+            for (const auto& el : bundle_adjuster_->getActiveKeyframeConstPtrs()) {
+                std::cout << "plane dist=" << el.second->local_ground_plane_.distance << std::endl;
+            }
 
-            auto start_debug_publish = std::chrono::steady_clock::now();
-            // convert poses to pose constraint array and publish
             if (interface_.show_debug_image) {
                 cv::imshow("flow debug image keyframes", helpers::getFlowImg(bundle_adjuster_));
                 cv::waitKey(30);
             }
-
-            if (interface_.path_publisher_topic != "" && interface_.active_path_publisher_topic != "") {
-                helpers::publishPaths(interface_.path_publisher,
-                                      interface_.active_path_publisher,
-                                      bundle_adjuster_,
-                                      interface_.tf_parent_frame_id);
-            }
-
-            if (interface_.landmarks_publisher_topic != "") {
-                helpers::publishLandmarks(
-                    interface_.landmarks_publisher, bundle_adjuster_, interface_.tf_parent_frame_id);
-            }
-
-            ROS_INFO_STREAM("In MonoLidar: Duration publishing for rviz="
-                            << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
-                                                                                     start_debug_publish)
-                                   .count()
-                            << " ms");
         }
+
 
         // hack:: dump pose if filepath is non empty
         if (interface_.dump_path != "") {
             std::ofstream file;
             file.open(interface_.dump_path.c_str(), std::ios_base::app);
             file.precision(12);
-            Eigen::Matrix<double, 4, 4> pose_mat;
+            Eigen::Isometry3d pose_origin_camera;
+
             if (bundle_adjuster_->getKeyframe().timestamp_ == tracklets_msg->stamps[0].toNSec()) {
                 // if current frame is chosen as keyframe, we can dump that one
-                pose_mat = (trf_camera_vehicle * bundle_adjuster_->getKeyframe().getEigenPose().inverse() *
-                            trf_camera_vehicle.inverse())
-                               .matrix();
+                pose_origin_camera = trf_camera_vehicle * bundle_adjuster_->getKeyframe().getEigenPose().inverse() *
+                                     trf_camera_vehicle.inverse();
                 ROS_DEBUG_STREAM("In MonoLidar: dump_optimized_pose");
-                std::stringstream ss;
-                ss << "/tmp/poses_dump_keyframes.txt";
-                std::ofstream file_kf(ss.str().c_str(), std::ios_base::app);
-                file_kf << helpers::poseToString(pose_mat) << std::endl;
-                file_kf.close();
             } else {
                 // otherwise we dump the current prior
-                pose_mat =
-                    (trf_camera_vehicle * pose_prior_origin_keyframe.inverse() * trf_camera_vehicle.inverse()).matrix();
+                pose_origin_camera =
+                    trf_camera_vehicle * pose_prior_keyframe_origin.inverse() * trf_camera_vehicle.inverse();
                 ROS_DEBUG_STREAM("In MonoLidar: dump prior");
             }
-            file << std::endl << helpers::poseToString(pose_mat) << std::flush;
+
+            file << std::endl << helpers::poseToString(pose_origin_camera.matrix()) << std::flush;
             file.close();
-            ROS_DEBUG_STREAM("In MonoLidar: dumped pose=\n" << pose_mat << "\nto " << interface_.dump_path);
-
-            // Debug
-            Eigen::Matrix<double, 4, 4> pose_mat_key =
-                (trf_camera_vehicle * bundle_adjuster_->getKeyframe().getEigenPose().inverse() *
-                 trf_camera_vehicle.inverse())
-                    .matrix();
-            std::stringstream ss;
-            ss << "/tmp/poses_keyframes.txt";
-            std::ofstream file_key(ss.str().c_str(), std::ios_base::app);
-            file_key.precision(12);
-            file_key << std::endl << helpers::poseToString(pose_mat_key) << std::flush;
-            file_key.close();
+            ROS_DEBUG_STREAM("In MonoLidar: dumped pose=\n"
+                             << pose_origin_camera.matrix()
+                             << "\nto "
+                             << interface_.dump_path);
+            last_pose_origin_camera = pose_origin_camera;
         }
-
     } else {
         // Since tracker only outputs stuff when we have at least 2 images inserted, the first time this is called,
         // we have 2 measurements already. Set oldest frame as keyframe
         // first received frame is always a keyframe and has fixed pose
         ros::Time ts_oldest_feature = tracklets_msg->stamps.back();
+        keyframe_bundle_adjustment::Plane ground_plane;
+        ground_plane.distance = interface_.height_over_ground;
         keyframe_bundle_adjustment::Keyframe cur_frame(ts_oldest_feature.toNSec(),
                                                        tracklets,
                                                        camera,
                                                        Eigen::Isometry3d::Identity(),
-                                                       keyframe_bundle_adjustment::Keyframe::FixationStatus::Pose);
+                                                       keyframe_bundle_adjustment::Keyframe::FixationStatus::Pose,
+                                                       ground_plane);
         bundle_adjuster_->push(cur_frame);
         ROS_DEBUG_STREAM("In MonoLidar: added first keyframe");
 
@@ -308,53 +321,55 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
             file.precision(12);
             file << helpers::poseToString(Eigen::Matrix<double, 4, 4>::Identity());
             file.close();
-
-            std::stringstream ss;
-            ss << "/tmp/poses_keyframes.txt";
-            std::ofstream file_key(ss.str().c_str());
-            file_key.precision(12);
-            file_key << helpers::poseToString(Eigen::Matrix<double, 4, 4>::Identity());
-            file_key.close();
         }
     }
-    auto start_send_tf = std::chrono::steady_clock::now();
 
-    auto last_kf = bundle_adjuster_->getKeyframe();
+    auto start_time_publish_stuff = std::chrono::steady_clock::now();
+    // convert poses to pose constraint array and publish
+    // auto out_msg =
+    //     helpers::convertToOutmsg(tracklets_msg->header.stamp, bundle_adjuster_, interface_.calib_source_frame_id);
+    // interface_.trajectory_publisher.publish(out_msg);
+    // ROS_DEBUG_STREAM("In MonoLidar: published " << out_msg.constraints.size() << " pose delta constraints to topic "
+    //                                             << interface_.trajectory_publisher_topic);
+
+    if (interface_.path_publisher_topic != "" && interface_.active_path_publisher_topic != "") {
+        helpers::publishPaths(interface_.path_publisher,
+                              interface_.active_path_publisher,
+                              bundle_adjuster_,
+                              interface_.tf_parent_frame_id);
+    }
+
+    if (interface_.landmarks_publisher_topic != "") {
+        helpers::publishLandmarks(interface_.landmarks_publisher, bundle_adjuster_, interface_.tf_parent_frame_id);
+    }
+
+    if (interface_.planes_publisher_topic != "") {
+        helpers::publishPlanes(interface_.planes_publisher, bundle_adjuster_, interface_.tf_parent_frame_id);
+    }
+    ss << "Duration publish="
+       << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() -
+                                                                start_time_publish_stuff)
+              .count()
+       << " ms" << std::endl;
+
     ros::Time timestamp_last_kf;
-    timestamp_last_kf.fromNSec(last_kf.timestamp_);
-    maybeSendPoseTf(timestamp_last_kf, last_kf.getEigenPose());
-
-    ROS_INFO_STREAM(
-        "In MonoLidar: Duration sending pose by tf="
-        << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_send_tf)
-               .count()
-        << " ms");
+    timestamp_last_kf.fromNSec(bundle_adjuster_->getKeyframe().timestamp_);
+    auto start_time_send_tf = std::chrono::steady_clock::now();
+    maybeSendPoseTf(timestamp_last_kf, bundle_adjuster_->getKeyframe().getEigenPose());
+    ss << "Duration send pose tf="
+       << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time_send_tf)
+              .count()
+       << " ms" << std::endl;
 
     // publisherDiagnosed_->publish(new_msg);
-
     // The updater will take care of publishing at a throttled rate
     // When calling update, all updater callbacks (defined in setupDiagnostics) will be run
     updater_.update();
 
     auto duration =
         std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() - start_time);
-    ROS_INFO_STREAM("In MonoLidar: time callback=" << duration.count() << " sec");
-}
-
-namespace {
-
-std::set<int> loadSetFromYaml(std::string yaml_path, std::string field_name) {
-    std::set<int> out;
-    YAML::Node root = YAML::LoadFile(yaml_path);
-    if (root[field_name] && root[field_name].IsSequence()) {
-        for (const auto& el : root[field_name]) {
-            out.insert(el.as<int>());
-        }
-    } else {
-        throw std::runtime_error("LabelReader: vector outlier_labels not defined.");
-    }
-    return out;
-}
+    ss << "time callback=" << duration.count() << " sec\n";
+    ROS_INFO_STREAM(ss.str());
 }
 
 /**
@@ -369,28 +384,56 @@ void MonoLidar::reconfigureRequest(const ReconfigureConfig& config, uint32_t lev
 
     // first is always cheirality since it is fast and reliable
     bundle_adjuster_->landmark_selector_->addScheme(
-        keyframe_bundle_adjustment::LandmarkSelectionSchemeCheirality::create());
+        keyframe_bundle_adjustment::LandmarkRejectionSchemeCheirality::create());
+    //    {
+    //        keyframe_bundle_adjustment::LandmarkRejectionSchemeDimensionPlausibility::Params p_dim;
+    //        p_dim.min_z = -5.;
+    //        p_dim.max_z = 30.;
+    //        bundle_adjuster_->landmark_selector_->addScheme(
+    //            keyframe_bundle_adjustment::LandmarkRejectionSchemeDimensionPlausibility::create(p_dim));
+    //    }
     // Sparsify landmarks with voxelgrid
     // get parameters
-    keyframe_bundle_adjustment::LandmarkSelectionSchemeVoxel::Parameters p;
+    keyframe_bundle_adjustment::LandmarkSparsificationSchemeVoxel::Parameters p;
     p.max_num_landmarks_near = interface_.max_number_landmarks_near_bin;
     p.max_num_landmarks_middle = interface_.max_number_landmarks_middle_bin;
     p.max_num_landmarks_far = interface_.max_number_landmarks_far_bin;
 
+    p.voxel_size_xyz = std::array<double, 3>{0.5, 0.5, 0.3}; // Voxelsize in x,y,z in meters
+    p.roi_far_xyz =
+        std::array<double, 3>{40., 40., 40.}; // Roi around current position in hwich points will be considered
+    p.roi_middle_xyz =
+        std::array<double, 3>{15., 15., 15.}; // Roi around current position in hwich points will be considered
+
     bundle_adjuster_->landmark_selector_->addScheme(
-        keyframe_bundle_adjustment::LandmarkSelectionSchemeVoxel::create(p));
+        keyframe_bundle_adjustment::LandmarkSparsificationSchemeVoxel::create(p));
     // Make parameters for depth assurance.
     // On the zeroth frame (newest frame) we assure 20 measurements with depth measurement.
     keyframe_bundle_adjustment::LandmarkSelectionSchemeAddDepth::Parameters p_add_depth;
-    p_add_depth.num_depth_meas[0] = 20;
+    //    p_add_depth.params_per_keyframe.push_back(std::make_tuple(
+    //        0,
+    //        20,
+    //        [](const keyframe_bundle_adjustment::Landmark::ConstPtr& lm) { return lm->has_measured_depth; },
+    //        [](const keyframe_bundle_adjustment::Measurement& m, const Eigen::Vector3d& lm) { return m.d; }));
+    auto gp_comparator = [](const keyframe_bundle_adjustment::Landmark::ConstPtr& lm) { return lm->is_ground_plane; };
+    auto gp_sorter = [](const keyframe_bundle_adjustment::Measurement& m, const Eigen::Vector3d& local_lm) {
+        return local_lm.norm();
+    };
+    p_add_depth.params_per_keyframe.clear();
+
+    for (int i = 0; i < interface_.max_size_optimization_window; i++) {
+        p_add_depth.params_per_keyframe.push_back(std::make_tuple(i, 50, gp_comparator, gp_sorter));
+    }
+
     bundle_adjuster_->landmark_selector_->addScheme(
         keyframe_bundle_adjustment::LandmarkSelectionSchemeAddDepth::create(p_add_depth));
 
     // reset robust loss paramters
     bundle_adjuster_->outlier_rejection_options_.depth_thres = interface_.robust_loss_depth_thres;
-    bundle_adjuster_->outlier_rejection_options_.reprojection_thres = interface_.robust_loss_reprojection_thres;
     bundle_adjuster_->outlier_rejection_options_.depth_quantile = interface_.outlier_rejection_quantile;
+    bundle_adjuster_->outlier_rejection_options_.reprojection_thres = interface_.robust_loss_reprojection_thres;
     bundle_adjuster_->outlier_rejection_options_.reprojection_quantile = interface_.outlier_rejection_quantile;
+    bundle_adjuster_->outlier_rejection_options_.num_iterations = interface_.outlier_rejection_num_iterations;
 
     ROS_DEBUG_STREAM("Depth thres=" << interface_.robust_loss_depth_thres);
     ROS_DEBUG_STREAM("Repr thres=" << interface_.robust_loss_reprojection_thres);
@@ -410,7 +453,8 @@ void MonoLidar::reconfigureRequest(const ReconfigureConfig& config, uint32_t lev
         keyframe_bundle_adjustment::KeyframeSparsificationSchemeTime::create(interface_.time_between_keyframes_sec));
 
     // Read outlier ids and set them in bundle_adjuster
-    bundle_adjuster_->labels_["outliers"] = loadSetFromYaml(interface_.outlier_labels_yaml, "outlier_labels");
+    bundle_adjuster_->labels_["outliers"] =
+        keyframe_bundle_adjustment_ros_tool::helpers::loadSetFromYaml(interface_.outlier_labels_yaml, "outlier_labels");
     std::stringstream ss;
     ss << "MonoLidar: outlier labels " << std::endl;
     for (const auto& el : bundle_adjuster_->labels_["outliers"]) {
@@ -419,7 +463,8 @@ void MonoLidar::reconfigureRequest(const ReconfigureConfig& config, uint32_t lev
     ss << std::endl;
     ROS_DEBUG_STREAM(ss.str());
 
-    bundle_adjuster_->labels_["shrubbery"] = loadSetFromYaml(interface_.outlier_labels_yaml, "shrubbery_labels");
+    bundle_adjuster_->labels_["shrubbery"] = keyframe_bundle_adjustment_ros_tool::helpers::loadSetFromYaml(
+        interface_.outlier_labels_yaml, "shrubbery_labels");
     ss.str("");
     ss << "MonoLidar: shrubbery weight: " << interface_.shrubbery_weight << " labels: " << std::endl;
     for (const auto& el : bundle_adjuster_->labels_["shrubbery"]) {
