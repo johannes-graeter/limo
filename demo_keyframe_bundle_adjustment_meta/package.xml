@@ -43,7 +43,6 @@
     <depend>trajectory_tracer_ros_tool</depend> 
     <depend>util_nodes_tf2_ros_tool</depend> 
     <depend>image_preproc_ros_tool</depend> 
-    <depend>matches_msg_viewer_ros_tool</depend> 
     <depend>keyframe_bundle_adjustment_ros_tool</depend> 
     <depend>odometry_mono_depth_ros_tool</depend>
     <depend>tracklets_depth_ros_tool</depend>

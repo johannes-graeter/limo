@@ -39,18 +39,6 @@
     <arg name="publisher_topic" default="/matches/grayscale/left/with_label"/>
   </include>
 
-  <!-- plot matches in image -->
-  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
-    <arg name="camera_name" value="left"/>
-    <arg name="topic_suffix" value="left/with_label"/>
-    <arg name="node_name_suffix" value="left_label"/>
-    <arg name="verbosity" value="info"/>
-    <arg name="has_outlier_flag" value="true"/>
-    <arg name="has_depth" value="true"/>
-    <arg name="mode" value="3"/>
-    <arg name="matches_topic" value="/matches/grayscale/left/with_label"/>
-  </include>
-
   <!-- launch keyframe bundle adjustment -->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/keyframe_ba_monolid.launch">
   <arg name="tracklets_subscriber_topic" value="/matches/grayscale/left/with_label"/>

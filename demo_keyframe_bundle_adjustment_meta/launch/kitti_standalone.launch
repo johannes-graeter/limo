@@ -53,17 +53,6 @@
   <!-- Add labels from semantic labeling to matches. -->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>
 
-  <!-- Viewer for labels. -->
-  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/matches_viewer.launch">
-    <arg name="camera_name" value="left"/>
-    <arg name="topic_suffix" value="left/with_outlier_label"/>
-    <arg name="node_name_suffix" value="left_outlier"/>
-    <arg name="verbosity" value="info"/>
-    <arg name="has_outlier_flag" value="true"/>
-    <arg name="has_depth" value="true"/>
-    <arg name="mode" value="3"/>
-    <arg name="matches_topic" value="/tracklets_depth/tracklets/left/with_outlier_label"/>
-  </include>
 
   <!-- odometry node -->
   <arg name="config_odometry" default="$(find demo_keyframe_bundle_adjustment_meta)/res/config_odometry_mono_depth.yaml"/>
