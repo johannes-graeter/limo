@@ -38,11 +38,9 @@
 #include "bundle_adjuster_keyframes.hpp"
 #include "gtest/gtest.h"
 #include "internal/cost_functors_ceres.hpp"
-#include "internal/indexed_histogram.hpp"
 #include "internal/local_parameterizations.hpp"
 #include "internal/motion_model_regularization.hpp"
 #include "internal/triangulator.hpp"
-#include "internal/voxel_grid.hpp"
 
 #include <fstream>
 #include <keyframe_selection_schemes.hpp>
@@ -1274,153 +1272,8 @@ TEST(CostFunctor, motion_regularization) {
         ASSERT_NEAR(res[1], 0.2, 1e-10);
     }
 }
-TEST(IndexedHistogram, main) {
-    std::vector<double> data(50);
-    std::iota(data.begin(), data.end(), -10);
-    std::shuffle(data.begin(), data.end(), std::mt19937{std::random_device{}()});
 
-    int num_bins = 5;
-    IndexedHistogram hist(num_bins, -5, 30);
-    hist.addData([&data](const int& a) { return data[a]; }, data.size());
 
-    auto out = hist.get();
-    // One bin more for outliers at end.
-    ASSERT_EQ(out.size(), num_bins + 1);
-    for (const auto& el : out) {
-        std::cout << "bin=" << el.first << " els:\n";
-        for (const int& ind : el.second) {
-            std::cout << ind << " ";
-        }
-        std::cout << std::endl << "val:\n";
-        for (const auto& ind : el.second) {
-            ASSERT_LE(data[ind], el.first);
-            std::cout << data[ind] << " ";
-        }
-        std::cout << std::endl;
-    }
-
-    std::cout << "done" << std::endl;
-}
-
-TEST(VoxelGrid, polar) {
-    // Generate data
-
-    std::vector<std::array<double, 3>> lms_origin{
-        {{10., 3., 5.5}}, {{11., 1., 6.5}}, {{14., -5., 6.}}, {{9., 1., 5.}}, {{16., -1., 4.}}};
-
-    VoxelGridPolar grid;
-    grid.setData(std::make_shared<VoxelGridBase::Lms>(lms_origin));
-    {
-        auto out = grid.get();
-        std::cout << out << std::endl;
-        {
-            std::stringstream ss;
-            ss << "/tmp/debug_grid_inidices.txt";
-            std::ofstream file(ss.str().c_str());
-            file.precision(12);
-            file << out.printGrid().str();
-            file.close();
-        }
-        {
-            std::stringstream ss;
-            ss << "/tmp/debug_grid_points.txt";
-            std::ofstream file(ss.str().c_str());
-            file.precision(12);
-            for (const auto& el : lms_origin) {
-                file << el[0] << " " << el[1] << " " << el[2] << std::endl;
-            }
-            file.close();
-        }
-        for (const auto& el : out.data_) {
-            const double& a = el.first;
-            for (const auto& el2 : el.second) {
-                const auto& d = el2.first;
-                if (!el2.second.empty()) {
-                    std::cout << a << " " << d << std::endl;
-                    std::cout << d * std::cos(a) << " " << d * std::sin(a) << std::endl;
-                }
-            }
-        }
-        ASSERT_EQ(out.size(), lms_origin.size());
-        auto non_zero_els = out.getNonZeroElements();
-
-        ASSERT_EQ(non_zero_els[0].indices.size(), 1);
-        ASSERT_NEAR(non_zero_els[0].dim0, -0.174533, 1e-4);
-        ASSERT_NEAR(non_zero_els[0].dim1, 20.7812, 1e-4);
-        ASSERT_EQ(non_zero_els[0].indices[0], 2);
-        ASSERT_EQ(non_zero_els[1].indices.size(), 1);
-        ASSERT_NEAR(non_zero_els[1].dim0, 0., 1e-4);
-        ASSERT_NEAR(non_zero_els[1].dim1, 20.7812, 1e-4);
-        ASSERT_EQ(non_zero_els[1].indices[0], 4);
-        ASSERT_EQ(non_zero_els[2].indices.size(), 2);
-        ASSERT_NEAR(non_zero_els[2].dim0, 0.174533, 1e-4);
-        ASSERT_NEAR(non_zero_els[2].dim1, 13.1875, 1e-4);
-        ASSERT_EQ(non_zero_els[2].indices[0], 1);
-        ASSERT_EQ(non_zero_els[2].indices[1], 3);
-        ASSERT_EQ(non_zero_els[3].indices.size(), 1);
-        ASSERT_NEAR(non_zero_els[3].dim0, 0.349066, 1e-4);
-        ASSERT_NEAR(non_zero_els[3].dim1, 13.1875, 1e-4);
-        ASSERT_EQ(non_zero_els[3].indices[0], 0);
-    }
-
-    grid.sparsify();
-    {
-        auto out = grid.get();
-        {
-            std::stringstream ss;
-            ss << "/tmp/debug_sparsified_grid_indices.txt";
-            std::ofstream file(ss.str().c_str());
-            file.precision(12);
-            file << out.printGrid().str();
-            file.close();
-        }
-        std::cout << out << std::endl;
-        for (const auto& el : out.data_) {
-            const double& a = el.first;
-            for (const auto& el2 : el.second) {
-                const auto& d = el2.first;
-                if (!el2.second.empty()) {
-                    std::cout << a << " " << d << std::endl;
-                    std::cout << d * std::cos(a) << " " << d * std::sin(a) << std::endl;
-                }
-            }
-        }
-        ASSERT_EQ(out.size(), 4);
-    }
-}
-TEST(VoxelGrid, cartesian) {
-    // Generate data
-
-    std::vector<std::array<double, 3>> lms_origin{{{10., 3., 5.5}},
-                                                  {{11., 1., 6.5}},
-                                                  {{11., 1.3, 6.5}},
-                                                  {{14., -5., 6.}},
-                                                  {{9., 1., 5.}},
-                                                  {{9.7, 1., 5.}},
-                                                  {{16., -1., 4.}}};
-
-    VoxelGridCartesian::Parameters params;
-    params.max_x = 50.;
-    params.min_x = -50.;
-    params.num_bins_x = 100;
-    params.max_y = 50.;
-    params.min_y = -50.;
-    params.num_bins_y = 100;
-
-    VoxelGridCartesian grid;
-    grid.setParameters(params);
-    grid.setData(std::make_shared<VoxelGridBase::Lms>(lms_origin));
-
-    std::cout << grid.get() << std::endl;
-    ASSERT_EQ(grid.get().getNonZeroElements().size(), 5);
-    ASSERT_EQ(grid.getIndices().size(), 7);
-
-    grid.sparsify();
-
-    std::cout << grid.get() << std::endl;
-    ASSERT_EQ(grid.get().getNonZeroElements().size(), 5);
-    ASSERT_EQ(grid.getIndices().size(), 5);
-}
 
 TEST(LandmarkSelector, voxel) {
     using namespace keyframe_bundle_adjustment;
