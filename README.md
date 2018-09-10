@@ -123,8 +123,7 @@ sudo apt-get install git
 ### Todo
 
 * runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
-* add and try rocc landmark selection
-* for less packages and better runtime we do not use external priors from liviodo as in Kitti, but internal priors and one motion only-adjustment in between keyframes. However results are slightly worse than on Kitti. Tune so that is not the case.
+* Make it iverall faster.
 
 ### Try it out
 
