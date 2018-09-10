@@ -147,6 +147,8 @@ p_b = transform_b_c1*transform_c1_c2*transform_c2_a*p_a
 * Evaluation on Kitti leads to 13th rank (March 16 2018)
 * Tested on Ubuntu 16.04, Ros-Kinetic, Gcc 7.2
 * Tested Image of VirtualBox
+* Added support for gourndplane constraint that is integrated in bundle_adjustment_graph
+* Updated to limo2 (same principal, bugfixes and groundplane constraint)
 
 ## Credits
 
