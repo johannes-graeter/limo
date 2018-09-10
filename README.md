@@ -8,6 +8,7 @@ We focus explicitely on the simple integration of the following key methodologie
 * Landmark selection
 * Prior estimation
 * Depth integration from different sensors.
+* Scale integration by groundplane constraint.
 
 The core library keyframe_bundle_adjustment is a backend that should faciliate to swap these modules and easily develop those algorithms.
 
@@ -20,6 +21,7 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
   * Difference in motion
 
 * We use this library for combining Lidar with monocular vision.
+* Limo2 on KITTI is LIDAR, supported with groundplane constraint.
 
 ## Note
 
