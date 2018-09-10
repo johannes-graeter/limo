@@ -119,6 +119,8 @@ std::string summary = bundle_adjuster.solve();
 
 * Landmark selection is done inside of BundleAdjusterKeyframes. You can add your own landmark selection scheme to it through the constructor. For different schemes have a look at landmark_selection_schemes.hpp.
 
+* If you want to estimate a local ground plane for every pose, hand over a groundplane prior to the Keyframe constructor (as done in keyframe_bundle_adjustment_ros_tool). If you want to estimate scale from that groundplane, hand over the calibrated height over ground. If you don't hand over height over ground and have LIDAR height over ground will be estimated.
+
 ## Issues
 
 ## Notation
