@@ -114,7 +114,7 @@ sudo apt-get install git
     1. `roscore`
     2. `rosbag play 04.bag -r 0.1 --pause --clock`
     3. ```shell
-       source ${your_catkin_workspace}/devel/setup.sh
+       source ${your_catkin_workspace}/devel_limo_release/setup.sh
        roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch
        ```
     4. unpause rosbag (hit space in terminal)
