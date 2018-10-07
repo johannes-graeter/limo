@@ -21,12 +21,7 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
   * Difference in motion
 
 * We use this library for combining Lidar with monocular vision.
-* Limo2 on KITTI is LIDAR, supported with groundplane constraint.
-
-## Note
-
-This is work in progress, detailed install instructions and examples will follow.
-Here in this repo we use a version with built in prior estimation since it is faster and less modules are required, however results are slightly worse than in kitti version up to now.
+* Limo2 on KITTI is LIDAR with monocular Visual Odometry, supported with groundplane constraint.
 
 ## Details
 This work was accepted on IROS 2018.
@@ -46,6 +41,9 @@ archivePrefix = "arXiv",
    adsurl = {http://adsabs.harvard.edu/abs/2018arXiv180707524G},
   adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
+
+Please note that LIMO2 differs from the publication. 
+We enhanced the speed a little and added additional groundplane reconstruction for pure monocular visual odometry and a combination of scale from LIDAR and the groundplane (best performing on KITTI).
 
 ## Installation
 
@@ -125,7 +123,8 @@ sudo apt-get install git
 ### Todo
 
 * runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
-* Make it iverall faster.
+* Make it overall faster.
+* Test on our own test car.
 
 ### Try it out
 
