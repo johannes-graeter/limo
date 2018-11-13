@@ -135,3 +135,7 @@ If you just want to give it a quick peek, I prepared a ready-to-use virtualbox i
 * Find all modules in ~/workspaces/limo/ .
 * Run example (~/04.bag) as described above.
 * Note that the runtime in the virtual machine is slower than on a normal system.
+
+### Known issues
+* Unittest of LandmarkSelector.voxel fails with libpcl version 1.7.2 or smaller (just 4 landmarks are selected). 
+Since this works with pcl 1.8.1 which is standard for ros melodic, this is ignored. This should lower the performance of the software only by a very small amount.
