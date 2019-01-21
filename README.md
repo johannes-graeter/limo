@@ -26,20 +26,16 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
 ## Details
 This work was accepted on IROS 2018.
 See https://arxiv.org/pdf/1807.07524.pdf .
-Until publication in proceedings of IROS, cite arxiv article
 
-@ARTICLE{2018arXiv180707524G,
-   author = {{Graeter}, J. and {Wilczynski}, A. and {Lauer}, M.},
-    title = "{LIMO: Lidar-Monocular Visual Odometry}",
-  journal = {ArXiv e-prints},
-archivePrefix = "arXiv",
-   eprint = {1807.07524},
- primaryClass = "cs.RO",
- keywords = {Computer Science - Robotics, Electrical Engineering and Systems Science - Image and Video Processing},
-     year = 2018,
-    month = jul,
-   adsurl = {http://adsabs.harvard.edu/abs/2018arXiv180707524G},
-  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+If you refer to this work please cite:
+
+@inproceedings{graeter2018limo,
+  title={LIMO: Lidar-Monocular Visual Odometry},
+  author={Graeter, Johannes and Wilczynski, Alexander and Lauer, Martin},
+  booktitle={2018 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages={7872--7879},
+  year={2018},
+  organization={IEEE}
 }
 
 Please note that LIMO2 differs from the publication. 
