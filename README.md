@@ -112,7 +112,7 @@ sudo apt-get install git
        roslaunch demo_keyframe_bundle_adjustment_meta kitti_standalone.launch
        ```
     4. unpause rosbag (hit space in terminal)
-    5. `rviz ${your_catkin_workspace}/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz`
+    5. `rviz -d ${your_catkin_workspace}/src/demo_keyframe_bundle_adjustment_meta/res/default.rviz`
 
 * watch limo trace the trajectory in rviz :)
 * Before submitting an issue, please have a look at the section [Known issues](#known-issues).
