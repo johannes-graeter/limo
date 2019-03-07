@@ -21,7 +21,8 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
   * Difference in motion
 
 * We use this library for combining Lidar with monocular vision.
-* Limo2 on KITTI is LIDAR with monocular Visual Odometry, supported with groundplane constraint.
+* Limo2 on KITTI is LIDAR with monocular Visual Odometry, supported with groundplane constraint
+* Video: https://youtu.be/wRemjJBjp64
 
 ## Details
 This work was accepted on IROS 2018.
