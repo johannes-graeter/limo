@@ -1,0 +1,76 @@
+import glob
+import os
+
+import numpy as np
+import pykitti
+
+import vtk_pointcloud as vtk_pcl
+
+
+def main():
+    sequence = "13"
+    poses_name = "/home/graeter/kitti_upload_candidates/likey_result_uploaded_rank13/{}.txt".format(sequence)
+    dir_name = "/mrtstorage/datasets/kitti/odometry/complete/"
+
+    r_start = 850
+    r_end = 1100
+    r_incr = 1
+    plot_range = range(r_start, r_end, r_incr)
+    data = pykitti.odometry(dir_name, sequence, frames=plot_range)
+
+    # Find all the Velodyne files
+    velo_path = os.path.join(
+        dir_name, 'sequences', sequence, 'velodyne_points', 'data', '*.bin')
+    velo_files = sorted(glob.glob(velo_path))
+
+    image_path = os.path.join(
+        dir_name, 'sequences', sequence, 'image_2', 'data', '*.png')
+    image_files = sorted(glob.glob(image_path))
+
+    # Create the geometry of a point (the coordinate)
+    pcl_colored = vtk_pcl.VtkPointCloud("rgb")
+    pcl = vtk_pcl.VtkPointCloud("y")
+
+    # load estimated poses
+    estimate = np.loadtxt(poses_name)
+    for i in plot_range:
+        pose = np.concatenate((estimate[i, :].reshape(3, 4), np.array([[0, 0, 0, 1]])))
+
+        scan = next(pykitti.utils.get_velo_scans([velo_files[i]]))
+        img = next(pykitti.utils.get_images([image_files[i]], "cv2"))
+        for poly_data_colored in scan:
+            reflectance = poly_data_colored[3]
+            if reflectance > 0.1:
+                poly_data_colored[3] = 1
+                p_cam0 = data.calib.T_cam0_velo.dot(poly_data_colored)
+                p_world = pose.dot(p_cam0)
+
+                pcl.add_point(p_world)
+
+                # Get color data and add to visualizer.
+                uv1 = data.calib.P_rect_20.dot(p_cam0)
+                uv1 /= uv1[2]
+                uv1 = np.floor(uv1).astype(int)
+
+                if p_cam0[2] > 0.1 and 0 < uv1[0] < img.shape[1] - 1 and 0 < uv1[1] < img.shape[0] - 1:
+                    color = img[uv1[1], uv1[0]]
+                    # Add to visualizer.
+                    pcl_colored.add_point(p_world, color)
+
+        print("processed frame number {}".format(i))
+
+    pcl.set_height(-2, 10, use_median=True)
+    # write new PLY
+    pcl_colored.write("/tmp/pcl_colored_{}_range_{}_{}_{}.ply".format(sequence, r_start, r_end, r_incr))
+    print("wrote pcl_colored.ply to tmp")
+
+    # write new PLY
+    # pcl.z_max = pcl.z_min + 20
+    pcl.write("/tmp/pcl_{}_range_{}_{}_{}.ply".format(sequence, r_start, r_end, r_incr))
+    print("wrote pcl.ply to tmp")
+
+    vtk_pcl.render(pcl)
+
+
+if __name__ == "__main__":
+    main()
