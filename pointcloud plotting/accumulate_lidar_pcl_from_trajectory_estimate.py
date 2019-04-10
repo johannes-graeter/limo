@@ -9,14 +9,17 @@ import vtk_pointcloud as vtk_pcl
 import argparse
 
 
-def main(sequence, results_dir, kitti_data_dir):
+def main(sequence, results_dir, kitti_data_dir, start_end_increment=None):
     poses_name = results_dir+"/{}.txt".format(sequence)
 
-    r_start = 850
-    r_end = 1100
-    r_incr = 1
-    plot_range = range(r_start, r_end, r_incr)
-    data = pykitti.odometry(kitti_data_dir, sequence, frames=plot_range)
+    if start_end_increment not is None:  # Get range of data.
+        r_start = start_end_increment[0]
+        r_end = start_end_increment[1]
+        r_incr = start_end_increment[2]
+        plot_range = range(r_start, r_end, r_incr)
+        data = pykitti.odometry(kitti_data_dir, sequence, frames=plot_range)
+    else:  # Get all.
+        data = pykitti.odometry(kitti_data_dir, sequence)
 
     # Find all the Velodyne files
     velo_path = os.path.join(
