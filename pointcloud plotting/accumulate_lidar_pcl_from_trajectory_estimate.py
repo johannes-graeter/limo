@@ -6,25 +6,25 @@ import pykitti
 
 import vtk_pointcloud as vtk_pcl
 
+import argparse
 
-def main():
-    sequence = "13"
-    poses_name = "/home/graeter/kitti_upload_candidates/likey_result_uploaded_rank13/{}.txt".format(sequence)
-    dir_name = "/mrtstorage/datasets/kitti/odometry/complete/"
+
+def main(sequence, results_dir, kitti_data_dir):
+    poses_name = results_dir+"/{}.txt".format(sequence)
 
     r_start = 850
     r_end = 1100
     r_incr = 1
     plot_range = range(r_start, r_end, r_incr)
-    data = pykitti.odometry(dir_name, sequence, frames=plot_range)
+    data = pykitti.odometry(kitti_data_dir, sequence, frames=plot_range)
 
     # Find all the Velodyne files
     velo_path = os.path.join(
-        dir_name, 'sequences', sequence, 'velodyne_points', 'data', '*.bin')
+        kitti_data_dir, 'sequences', sequence, 'velodyne_points', 'data', '*.bin')
     velo_files = sorted(glob.glob(velo_path))
 
     image_path = os.path.join(
-        dir_name, 'sequences', sequence, 'image_2', 'data', '*.png')
+        kitti_data_dir, 'sequences', sequence, 'image_2', 'data', '*.png')
     image_files = sorted(glob.glob(image_path))
 
     # Create the geometry of a point (the coordinate)
@@ -73,4 +73,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--sequence", type=str, help="Sequence number.")
+    parser.add_argument("--results", type=str, help="Directory where textfiles of results are stored.")
+    parser.add_argument("--data", type=str, help="Path to kitti data (without parent folder of all sequences).")
+
+    args = parser.parse_args()
+    main(args.sequence, args.results, args.data)
