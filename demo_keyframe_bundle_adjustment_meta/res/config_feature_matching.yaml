@@ -4,10 +4,12 @@ general:
   matches_msg_name: tgt/matches
   image_msg_queue_size: 10
   image_msg_name: src/image
+  scale_factor: 1.0 # Factor used to scale down image.
+  mask_path: "" # Path to mask (png with black and white)
 
 # viso2::Matcher params and tracker config
 matcher:
-  nms_n: 7
+  nms_n: 9
   nms_tau: 20
   match_binsize: 200
   match_radius: 400

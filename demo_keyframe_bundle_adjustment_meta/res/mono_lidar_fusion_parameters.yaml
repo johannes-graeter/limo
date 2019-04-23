@@ -127,6 +127,9 @@ pca_treshold_2_1_rel_min: 1.5 # the min value how much greater the second EV mus
 # Estimation for points on the ground plane
 do_use_ransac_plane: 1
 ransac_plane_distance_treshold: 0.2
+# Cut pointcloud in height. Velodyne is mount at ~2.40m over ground.
+ransac_plane_min_z: -3.5
+ransac_plane_max_z: -1.0
 # ransac max itearation count
 ransac_plane_max_iterations: 600
 # probability to get a correct estimate
