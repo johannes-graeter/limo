@@ -97,7 +97,7 @@ sudo apt-get install git
 * unittests:
     ```shell 
     cd ${your_catkin_workspace}/src/limo
-    catkin run_tests --this --profile limo_release
+    catkin run_tests --profile limo_release
     ```
     
 ### Run
