@@ -81,7 +81,7 @@ gen.add("outlier_rejection_quantile", paramtype='double', description="we solve 
 gen.add("outlier_rejection_num_iterations", paramtype='int', description="we solve the problem n times with n num_iterations and reject the (1-quantile)*100% most downweighted residuals", default="1", min="0", max="10", configurable=True)
 
 gen.add("height_over_ground", paramtype='double', description="height over ground from vehicle coordinate system, value<-10. means no gp will be added to problem.", default="0.30", min="-10.0001", max="10", configurable=True)
-gen.add("prior_speed", paramtype='double', description="Speed of vehicle in meter per second at beginning, when plane can not be estimated yet. Only used if not external prior given.  ", default="4.", min="1.", max="30.", configurable=True)
+gen.add("prior_speed", paramtype='double', description="Speed of vehicle in meter per second at beginning, when plane can not be estimated yet. Only used if not external prior given.  ", default="4.", min="0.001", max="30.", configurable=True)
 
 # Other parameters
 gen.add("show_debug_image", paramtype='bool', description="if true show measurements on keyframes in debug image", default="false", configurable=True)
