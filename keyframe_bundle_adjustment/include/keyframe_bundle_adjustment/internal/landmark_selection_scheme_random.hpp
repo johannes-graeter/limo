@@ -23,7 +23,7 @@ public: // public classes/enums/types etc...
 public: // public methods
     // default constructor
     LandmarkSparsificationSchemeRandom(size_t num_landmarks) : num_landmarks_(num_landmarks) {
-        ;
+        identifier = "random";
     }
 
     // default destructor

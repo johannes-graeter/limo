@@ -40,7 +40,7 @@ public: // Attributes.
 public: // Public methods.
     // Default constructor.
     explicit LandmarkSparsificationSchemeVoxel(Parameters p) : params_(p) {
-        ;
+        identifier = "voxel";
     }
 
     // Default destructor.

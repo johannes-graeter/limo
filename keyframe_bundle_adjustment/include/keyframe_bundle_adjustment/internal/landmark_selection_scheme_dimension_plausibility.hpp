@@ -29,7 +29,7 @@ public: // public classes/enums/types etc...
 public: // public methods
     // default constructor
     LandmarkRejectionSchemeDimensionPlausibility(const Params& p) : params_(p) {
-        ;
+        identifier = "dimension plausibility";
     }
 
     // default destructor

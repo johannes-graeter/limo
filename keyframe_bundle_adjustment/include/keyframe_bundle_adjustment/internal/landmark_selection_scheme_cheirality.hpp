@@ -27,7 +27,9 @@ public: // public classes/enums/types etc...
 public: // attributes
 public: // public methods
     // default constructor
-    LandmarkRejectionSchemeCheirality() = default;
+    LandmarkRejectionSchemeCheirality() {
+        identifier = "cheirality";
+    }
 
     // default destructor
     virtual ~LandmarkRejectionSchemeCheirality() = default;

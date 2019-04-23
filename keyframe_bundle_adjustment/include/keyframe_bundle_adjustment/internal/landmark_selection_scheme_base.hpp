@@ -60,6 +60,11 @@ public: // public methods
      * @return selected set of landmarks
      */
     virtual std::set<LandmarkId> getSelection(const LandmarkMap& landmarks, const KeyframeMap& keyframes) const = 0;
+
+    /**
+     * @brief identifier, identify scheme
+     */
+    std::string identifier = "";
 };
 
 /**

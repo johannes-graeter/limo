@@ -50,7 +50,7 @@ public: // public classes/enums/types etc...
 public: // public methods
     // default constructor
     LandmarkSparsificationSchemeObservability(Parameters p) : params_(p) {
-        ;
+        identifier = "observability";
     }
 
     // default destructor

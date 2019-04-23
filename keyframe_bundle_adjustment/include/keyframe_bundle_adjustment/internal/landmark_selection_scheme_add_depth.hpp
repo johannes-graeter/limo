@@ -51,7 +51,7 @@ public: // public classes/enums/types etc...
 public: // public methods
     // default constructor
     LandmarkSelectionSchemeAddDepth(Parameters p) : params_(p) {
-        ;
+        identifier = "add depth";
     }
 
     // default destructor

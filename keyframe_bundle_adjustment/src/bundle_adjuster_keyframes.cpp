@@ -368,6 +368,16 @@ bool BundleAdjusterKeyframes::calculateLandmark(const LandmarkId& lId, v3& posAb
     // they origin in the same coordinate system as the poses
     posAbs = triangulator_.triangulate_rays(measurements_and_poses);
 
+    // test cheirality.
+    // higher speed but only valid if x-axis points in camera axis.
+    // for higher generality rather use landmark selection scheme (which is slower...)
+    //for (const auto& pose_meas : measurements_and_poses) {
+    //    Eigen::Vector3d local_lm = *(pose_meas.first) * posAbs;
+    //    if (local_lm.x() < 0.1) {
+    //        return false;
+    //    }
+    //}
+
     return true;
 }
 
