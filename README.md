@@ -101,7 +101,8 @@ sudo apt-get install git
     ```
     
 ### Run
-* get test data from [https://www.mrt.kit.edu/graeterweb/04.bag](https://www.mrt.kit.edu/graeterweb/04.bag)
+* get test data[Sequence 04](https://drive.google.com/open?id=16txq5V2RJyJH_VTsbeYOJzSWR5AKOtin)
+
     1. this is a bag file generated from Kitti sequence 04 with added semantic labels.
     2. there is more under the same address all named ??.bag (supported: 00.bag, 01.bag, 04.bag)
 
