@@ -16,5 +16,4 @@ void StaticTransformAliasNodelet::onInit() {
 
 } // namespace util_nodes_tf2_ros_tool
 
-PLUGINLIB_DECLARE_CLASS(util_nodes_tf2_ros_tool, StaticTransformAliasNodelet,
-                        util_nodes_tf2_ros_tool::StaticTransformAliasNodelet, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(util_nodes_tf2_ros_tool::StaticTransformAliasNodelet, nodelet::Nodelet);
