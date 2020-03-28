@@ -1,3 +1,8 @@
+.catkin_tools
+build_limo_release/*
+devel_limo_release/*
+logs_limo_release/*
+
 # Prerequisites
 *.d
 
