@@ -1,4 +1,4 @@
-# limo
+# Limo
 
 Lidar-Monocular Visual Odometry.
 This library is designed to be an open platform for visual odometry algortihm development.
@@ -143,19 +143,6 @@ This is a bag file generated from Kitti sequence 04 with added semantic labels.
 * runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
 * Make it overall faster.
 * Test on our own test car.
-
-### Try it out
-
-THIS IS NOT SUPPORTED AT THE MOMENT.
-DOCKER CONTAINER COMING UP SOON.
-
-If you just want to give it a quick peek, I prepared a ready-to-use virtualbox image (packed with Ubuntu 16.04.04, ros kinetic and all dependencies for limo).
-
-* download it from [https://www.mrt.kit.edu/graeterweb/limo_full.ova](https://www.mrt.kit.edu/graeterweb/limo_full.ova).
-* Password for the vm-image is "1234".
-* Find all modules in ~/workspaces/limo/ .
-* Run example (~/04.bag) as described above.
-* Note that the runtime in the virtual machine is slower than on a normal system.
 
 ## Known issues
 * Unittest of LandmarkSelector.voxel fails with libpcl version 1.7.2 or smaller (just 4 landmarks are selected). 
