@@ -1,0 +1,11 @@
+version: '3.4'
+
+services:
+  limo:
+    build: ./src
+    container_name: limo
+    volumes:
+      - $HOME/limo_data:/limo_data
+    stdin_open: true
+    tty: true
+

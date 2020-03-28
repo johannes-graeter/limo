@@ -23,6 +23,7 @@ The core library keyframe_bundle_adjustment is a backend that should faciliate t
 * We use this library for combining Lidar with monocular vision.
 * Limo2 on KITTI is LIDAR with monocular Visual Odometry, supported with groundplane constraint
 * Video: https://youtu.be/wRemjJBjp64
+* Now we switched from kinetic to melodic
 
 ## Details
 This work was accepted on IROS 2018.
@@ -30,6 +31,7 @@ See https://arxiv.org/pdf/1807.07524.pdf .
 
 If you refer to this work please cite:
 
+```bibtex
 @inproceedings{graeter2018limo,
   title={LIMO: Lidar-Monocular Visual Odometry},
   author={Graeter, Johannes and Wilczynski, Alexander and Lauer, Martin},
@@ -38,11 +40,30 @@ If you refer to this work please cite:
   year={2018},
   organization={IEEE}
 }
+```
 
-Please note that LIMO2 differs from the publication. 
+
+Please note that Limo2 differs from the publication. 
 We enhanced the speed a little and added additional groundplane reconstruction for pure monocular visual odometry and a combination of scale from LIDAR and the groundplane (best performing on KITTI).
+For information on Limo2, please see my dissertation https://books.google.de/books?hl=en&lr=&id=cZW8DwAAQBAJ&oi .
 
 ## Installation
+
+### Docker
+To facilitate the development I created a standalone dockerfile.
+* Install docker https://phoenixnap.com/kb/how-to-install-docker-on-ubuntu-18-04
+* build docker:
+```shell
+# This is where you put the rosbags this will be available at /limo_data in the container
+mkdir $HOME/limo_data
+cd limo/docker
+docker-compose build limo
+```
+* You can run the docker and go to the entrypoint with 
+```shell
+docker-compose run limo
+```
+* Go to step Run in this tutorial, use tmux for terminals
 
 ### Requirements
 
@@ -57,8 +78,8 @@ In any case:
  sudo apt-get install libpng++-dev
  ```
 * install ros: 
-  - follow the instructions on [https://wiki.ros.org/kinetic/Installation](https://wiki.ros.org/kinetic/Installation).
-  - you will need to install ros-full (for pcl).
+  - follow the instructions on [https://wiki.ros.org/melodic/Installation](https://wiki.ros.org/melodic/Installation).
+  - you will need to install ros-perception (for pcl).
   - don't forget to source your ~/.bashrc afterwards.
 * install catkin_tools: 
 ```shell 
@@ -66,7 +87,7 @@ sudo apt-get install python-catkin-tools
  ```
 * install opencv_apps: 
 ```shell
-sudo apt-get install ros-kinetic-opencv-apps
+sudo apt-get install ros-melodic-opencv-apps
 ```
 * install git: 
 ```shell
@@ -104,7 +125,7 @@ sudo apt-get install git
 * get test data [Sequence 04](https://drive.google.com/open?id=16txq5V2RJyJH_VTsbeYOJzSWR5AKOtin) or [Sequence 01](https://drive.google.com/open?id=1u7RFNSvx3IY6l3-hIHBEL1X3wUGri8Tg).
 This is a bag file generated from Kitti sequence 04 with added semantic labels.
    
-* in different terminals
+* in different terminals (for example with tmux)
     1. `roscore`
     2. `rosbag play 04.bag -r 0.1 --pause --clock`
     3. ```shell
