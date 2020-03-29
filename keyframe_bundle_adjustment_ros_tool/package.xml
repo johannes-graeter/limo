@@ -29,7 +29,7 @@
   <depend>matches_msg_conversions_ros</depend>
   <depend>sensor_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>mrt_pcl</depend>
+  <depend>pcl</depend>
   <depend>pcl_ros</depend>
 
   <depend>image_geometry</depend>

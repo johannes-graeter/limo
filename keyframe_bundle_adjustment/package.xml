@@ -12,24 +12,11 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mrt_cmake_modules</build_depend>
   <test_depend>gtest</test_depend>
-  <!--
-    Documentation for dependencies:
-    <build_depend>            Build-time dependency required to build
-                              this package, e.g. boost, opencv.
-    <build_export_depend>     Exported build-time dependency required to
-                              build packages that depend on this package,
-                              e.g. boost, opencv.
-    <exec_depend>             Execution dependency required to run this
-                              package, e.g. boost, opencv.
-    <depend>                  Build-time, exported build-time and execution
-                              dependency. This is a bundled synonym for
-                              <build_depend>, <build_export_depend> and
-                              <exec_depend>.
-  -->
+
   <depend>eigen</depend>
-  <depend>mrt_ceres</depend>
-  <depend>mrt_pcl</depend> <!--For voxelization in landmark selection-->
-  <depend>mrt_opencv</depend>
+  <depend>ceres</depend>
+  <depend>pcl</depend> <!--For voxelization in landmark selection-->
+  <depend>opencv</depend>
   <depend>matches_msg_types</depend>
   <depend>robust_optimization</depend>
   <depend>boost</depend>
