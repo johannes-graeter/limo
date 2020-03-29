@@ -54,15 +54,9 @@ RUN catkin config --profile limo_release -x _limo_release --cmake-args -DCMAKE_B
 WORKDIR /workspace/limo_ws/src
 RUN rm -rf /workspace/limo_ws/src/limo \
     && git clone https://github.com/johannes-graeter/limo.git \
-    && cd limo \
-    && git checkout port_18.04 \
-    && cd .. \
     && rm -rf /workspace/limo_ws/src/feature_tracking \
     && git clone https://github.com/johannes-graeter/feature_tracking.git \
-    && cd feature_tracking \
-    && git checkout port_18.04 \
-    && cd .. \ 
-    &&rm -rf /workspace/limo_ws/src/mono_lidar_depth \
+    && rm -rf /workspace/limo_ws/src/mono_lidar_depth \
     && git clone https://github.com/johannes-graeter/mono_lidar_depth.git \
     && rm -rf /workspace/limo_ws/src/viso2.git \
     && git clone https://github.com/johannes-graeter/viso2.git \
