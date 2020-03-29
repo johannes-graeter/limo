@@ -65,8 +65,8 @@ RUN rm -rf /workspace/limo_ws/src/limo \
     && rm -rf /workspace/limo_ws/src/rosinterface_handler \
     && git clone https://github.com/johannes-graeter/rosinterface_handler.git
 
-# WORKDIR /workspace/limo_ws/
-# RUN /bin/bash -c 'source /opt/ros/melodic/setup.bash && catkin build --profile limo_release'
+WORKDIR /workspace/limo_ws/
+RUN /bin/bash -c 'source /opt/ros/melodic/setup.bash && catkin build --profile limo_release'
 
 COPY entry.sh /entry.sh
 RUN chmod +x /entry.sh
