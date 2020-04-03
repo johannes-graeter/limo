@@ -61,9 +61,14 @@ docker-compose build limo
 ```
 * You can run the docker and go to the entrypoint with 
 ```shell
+docker-compose run limo bash
+```
+Go to step Run in this tutorial and use tmux for terminals.
+* You can invoke a jupyter notebook with a python interface for limo with
+```shell
 docker-compose run limo
 ```
-* Go to step Run in this tutorial, use tmux for terminals
+and open the suggested link from the run output in a browser.
 
 ### Requirements
 
