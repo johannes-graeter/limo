@@ -77,7 +77,7 @@ RUN rm -rf /workspace/limo_ws/src/limo \
 WORKDIR /workspace/limo_ws/
 RUN /bin/bash -c 'source /opt/ros/melodic/setup.bash && catkin build'
 
-WORKDIR /workspace/limo_ws/src/feature_tracking/matcher_python_binding/notebook
+WORKDIR /workspace/limo_ws/src/feature_tracking/feature_tracking_core/notebook
 RUN jupytext feature_tracking_notebook.py --to notebook
 
 COPY entry.sh /entry.sh
@@ -85,4 +85,4 @@ RUN chmod +x /entry.sh
 
 ENTRYPOINT ["/entry.sh"]
 # CMD ["bash"]
-CMD /bin/bash -c 'source /opt/ros/melodic/setup.bash && source /workspace/limo_ws/devel/setup.bash && jupyter notebook --port=8888 --no-browser --ip=0.0.0.0 --allow-root /workspace/limo_ws/src/feature_tracking/matcher_python_binding/notebook/feature_tracking_notebook.ipynb'
+CMD /bin/bash -c 'source /opt/ros/melodic/setup.bash && source /workspace/limo_ws/devel/setup.bash && jupyter notebook --port=8888 --no-browser --ip=0.0.0.0 --allow-root /workspace/limo_ws/src/feature_tracking/feature_tracking_core/notebook/feature_tracking_notebook.ipynb'

@@ -66,7 +66,7 @@ docker-compose run limo bash
 Go to step Run in this tutorial and use tmux for terminals.
 * You can invoke a jupyter notebook with a python interface for limo with
 ```shell
-docker-compose run limo
+docker-compose up limo
 ```
 and open the suggested link from the run output in a browser.
 
