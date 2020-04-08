@@ -223,17 +223,36 @@ public:
     std::unique_ptr<LandmarkSelector> landmark_selector_; ///< pointer to landmark selector which
                                                           /// follows one or more selection schemes
 
-    ///@brief labels from semantic labeling that should be treated as outliers and weighted down
-    /// If you want to set more, edit them from outside.
+    ///@brief labels from semantic labeling that should be treated as outliers and weighted down.
+    ///       The values set here are from cityscapes labels
+    ///       (https://github.com/mcordts/cityscapesScripts/).
+    ///       If you want to set more, edit them from outside.
     std::map<std::string, std::set<int>> labels_{{"outliers",
                                                   {
                                                       23, // sky
                                                       24, // kind of vehicle
                                                       25, // motorcycle
-                                                      26  // vehicle
+                                                      26, // vehicle
+                                                      27, // truck
+                                                      28, // bus
+                                                      29, // caravan
+                                                      30, // trailer
+                                                      31, // train
+                                                      32, // motorcycle
+                                                      33  // bicycle
                                                   }},
-                                                 {"shrubbery", {21}},
-                                                 {"ground", {6, 7, 8, 9, 10}}};
+                                                 {"shrubbery",
+					          {
+						      21 // vegetation
+						  }},
+                                                 {"ground",
+					          {
+					              6, // ground
+						      7, // road
+						      8, // sidewalk
+						      9, // parking
+						      10 // rail track
+						  }}};
 
 private:                                      // attributes
     Triangulator<double> triangulator_;       ///< triangulator instance
