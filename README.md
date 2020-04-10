@@ -167,12 +167,6 @@ This is a bag file generated from Kitti sequence 04 with added semantic labels.
 * watch limo trace the trajectory in rviz :)
 * Before submitting an issue, please have a look at the section [Known issues](#known-issues).
 
-### Todo
-
-* runtime is ok for individual modules, however communication between nodes must be enhanced to ensure online usage (nodelets...). 
-* Make it overall faster.
-* Test on our own test car.
-
 ## Known issues
 * Unittest of LandmarkSelector.voxel fails with libpcl version 1.7.2 or smaller (just 4 landmarks are selected). 
 Since this works with pcl 1.8.1 which is standard for ros melodic, this is ignored. This should lower the performance of the software only by a very small amount.
