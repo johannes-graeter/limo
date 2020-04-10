@@ -70,6 +70,30 @@ docker-compose up limo
 ```
 and open the suggested link from the run output in a browser.
 
+### Semantic segmentation
+
+The monocular variant expects semantic segmentation of the images.
+You can produce this for example with my fork from NVIDIA's semantic segmentation:
+1. Clone my fork
+```bash
+git clone https://github.com/johannes-graeter/semantic-segmentation
+```
+2. Download best_kitti.pth as described in the README.md from NVIDIA and put it in the semantic-segmentation folder
+3. I installed via their docker, for which you must be logged in on (and register if necessary)
+https://ngc.nvidia.com/
+
+4. Build the container with 
+```bash
+docker-compose build semantic-segmentation
+```
+
+5. Run the segmentation with
+```bash
+docker-copmose run semantic-segmentation
+```
+Note that without a GPU this will take some time.
+With the Nvidia Quadro P2000 on my laptop i took around 6 seconds per image.
+
 ### Requirements
 
 In any case:
