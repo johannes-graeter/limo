@@ -6,6 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
+#include <Eigen/Dense>
 #include <robust_solving.hpp>
 #include <internal/apply_trimmer.hpp>
 
