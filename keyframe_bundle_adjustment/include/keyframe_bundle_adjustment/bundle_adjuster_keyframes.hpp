@@ -204,6 +204,14 @@ public: // methods
      */
     void updateLabels(const Tracklets& t, double shrubbery_weight = 1.);
 
+    void setLastSolveTimestamp(double timestamp_sec){
+    	last_solve_timestamp_sec = timestamp_sec;
+    }
+
+    double getLastSolveTimestamp() const{
+    	return last_solve_timestamp_sec;
+    }
+
 private: // methods
          /**
           * @brief getMeasurementsAndPoses, convenience function to get measurements and poses from
@@ -220,7 +228,7 @@ public:
     std::set<LandmarkId> active_landmark_ids_;      ///< save ids of active landmarks (landmarks that could be selected)
     std::set<LandmarkId> selected_landmark_ids_;    ///< landmarks that were selected for optimization
     OutlierRejectionOptions outlier_rejection_options_;   ///< options for robustifiers
-    std::unique_ptr<LandmarkSelector> landmark_selector_; ///< pointer to landmark selector which
+    std::shared_ptr<LandmarkSelector> landmark_selector_; ///< pointer to landmark selector which
                                                           /// follows one or more selection schemes
 
     ///@brief labels from semantic labeling that should be treated as outliers and weighted down.
@@ -258,6 +266,7 @@ private:                                      // attributes
     Triangulator<double> triangulator_;       ///< triangulator instance
     std::shared_ptr<ceres::Problem> problem_; ///< instance of ceres problem
     double solver_time_sec;                   ///< solver time in seconds for ceres
+    double last_solve_timestamp_sec{0.};          ///< last time a solve was done
 
 private: // methods
     /// //////////////////////////////////////////////

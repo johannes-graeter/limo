@@ -33,6 +33,7 @@
   <depend>matches_msg_types</depend>
   <depend>robust_optimization</depend>
   <depend>boost</depend>
+  <depend>libboost-python-dev</depend>
 
   <export>
     <!-- Other tools can request additional information be placed here -->

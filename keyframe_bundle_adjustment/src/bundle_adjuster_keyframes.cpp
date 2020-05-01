@@ -113,7 +113,7 @@ std::vector<LandmarkId> getCommonLandmarkIds(const Keyframe& cur_kf, const Keyfr
 
 
 BundleAdjusterKeyframes::BundleAdjusterKeyframes() : solver_time_sec(0.2) {
-    landmark_selector_ = std::make_unique<LandmarkSelector>();
+    landmark_selector_ = std::make_shared<LandmarkSelector>();
     // first is always cheirality since it is fast and reliable
     landmark_selector_->addScheme(LandmarkRejectionSchemeCheirality::create());
 
