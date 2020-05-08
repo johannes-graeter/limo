@@ -28,6 +28,14 @@ mrt_add_to_ide(README.md .gitlab-ci.yml)
 # This adds a python module if located under src/{PROJECT_NAME)
 mrt_python_module_setup()
 
+file(GLOB PROJECT_PYTHON_SOURCE_FILES_SRC RELATIVE "${CMAKE_CURRENT_LIST_DIR}" "python_api/*.cpp")
+if (PROJECT_PYTHON_SOURCE_FILES_SRC)
+    # Add a cpp-python api library. Make sure there are no name collisions with python modules in this project
+    mrt_add_python_api( ${PROJECT_NAME}
+        FILES ${PROJECT_PYTHON_SOURCE_FILES_SRC}
+        )
+endif()
+
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################

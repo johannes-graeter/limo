@@ -109,13 +109,13 @@ bool calcMotion5Point(Eigen::Isometry3d& motion,
                       double flow_thres = 3.0) {
 
     if (points0.size() == 0 || points1.size() == 0) {
-        ROS_DEBUG_STREAM("no points for 5 point available!");
+	    std::cout<<"no points for 5 point available!"<<std::endl;
         return false;
     }
 
     if (getMeanFlow(points0, points1) < flow_thres) {
         motion.translation() = Eigen::Vector3d(0., 0., 0.);
-        ROS_DEBUG_STREAM("in 5-point: not enough flow! Return motion=\n" << motion.matrix());
+	std::cout<<"in 5-point: not enough flow! Return motion=\n" << motion.matrix()<<std::endl;
         return false;
     }
 

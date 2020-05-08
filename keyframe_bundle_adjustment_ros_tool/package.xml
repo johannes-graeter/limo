@@ -23,6 +23,7 @@
 
   <depend>keyframe_bundle_adjustment</depend>
   <depend>viso_feature_tracking_ros_tool</depend>
+  <depend>libboost-python-dev</depend>
 
   <depend>matches_msg_ros</depend>
   <depend>matches_msg_depth_ros</depend>

@@ -15,6 +15,7 @@
 
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
 #include <keyframe_bundle_adjustment/keyframe_selector.hpp>
+#include <commons/general_helpers.hpp>
 
 namespace p = boost::python;
 namespace np = p::numpy;
@@ -32,14 +33,14 @@ struct Config {
   double shrubbery_weight;
   double min_median_flow;
   double critical_rotation_difference;
-  double max_number_landmarks_near_bin;
-  double max_number_landmarks_middle_bin;
-  double max_number_landmarks_far_bin;
+  int max_number_landmarks_near_bin;
+  int max_number_landmarks_middle_bin;
+  int max_number_landmarks_far_bin;
   double robust_loss_reprojection_thres;
   double outlier_rejection_quantile;
-  double outlier_rejection_num_iterations;
+  int outlier_rejection_num_iterations;
   double max_solver_time;
-  double outlier_labels_yaml;
+  std::string outlier_labels_yaml;
 };
 
 double to_nano_sec(double ts_sec){
@@ -68,7 +69,7 @@ void executeMonoBundleAdjustment(
 
     // get motion corresponding to last keyframe
     auto start_time_5point = std::chrono::steady_clock::now();
-    Eigen::Isometry3d motion_prior_vehicle_t1_t0 = helpers::getMotionUnscaled(
+    Eigen::Isometry3d motion_prior_vehicle_t1_t0 = keyframe_bundle_adjustment_ros_tool::helpers::getMotionUnscaled(
         camera_data.focal_length, cv::Point2d(camera_data.cx, camera_data.cy),
         to_nano_sec(cur_timestamp_sec),
         bundle_adjuster_.getKeyframe().timestamp_, tracklets,
@@ -283,6 +284,20 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
   p::class_<kfba::Keyframe>("Keyframe", p::init<>())
       .def(p::init<uint64_t, kfba::Tracklets, kfba::Camera::Ptr, Eigen::Isometry3d, kfba::Keyframe::FixationStatus, kfba::Plane>())
       .def_readwrite("FixationStatus", &kfba::Keyframe::fixation_status_);
+
+  p::class_<Config>("Config", p::init<>())
+      .def_readwrite("height_over_ground", &Config::height_over_ground)
+      .def_readwrite("time_between_keyframes_sec", &Config::time_between_keyframes_sec)
+      .def_readwrite("min_median_flow", &Config::min_median_flow)
+      .def_readwrite("critical_rotation_difference", &Config::critical_rotation_difference)
+      .def_readwrite("max_number_landmarks_near_bin", &Config::max_number_landmarks_near_bin)
+      .def_readwrite("max_number_landmarks_middle_bin", &Config::max_number_landmarks_middle_bin)
+      .def_readwrite("max_number_landmarks_far_bin", &Config::max_number_landmarks_far_bin)
+      .def_readwrite("robust_loss_reprojection_thres", &Config::robust_loss_reprojection_thres)
+      .def_readwrite("outlier_rejection_quantile", &Config::outlier_rejection_quantile)
+      .def_readwrite("outlier_rejection_num_iterations", &Config::outlier_rejection_num_iterations)
+      .def_readwrite("max_solver_time", &Config::max_solver_time)
+      .def_readwrite("outlier_labels_yaml", &Config::outlier_labels_yaml);
 
   p::class_<keyframe_bundle_adjustment::Tracklets>("Tracklets", p::init<>());
 
