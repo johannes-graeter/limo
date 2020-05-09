@@ -35,3 +35,6 @@ logs_limo_release/*
 *.exe
 *.out
 *.app
+
+# Notebooks
+*.ipynb
