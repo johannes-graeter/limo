@@ -35,11 +35,10 @@ dataset = pykitti.odometry(basedir, sequence)
 
 # In[4]:
 camera_data  = kfba.CameraData()
-camera_data.focal_length = dataset.calib.K_cam0[0,0]
-camera_data.cx = dataset.calib.K_cam0[0,-1]
-camera_data.cy = dataset.calib.K_cam0[1,-1]
-camera_data.transform_camera_vehicle = np.eye(4)
-camera_data.transform_camera_vehicle[:3,:4] = dataset.calib.T_cam0_velo
+camera_data.focal_length = dataset.calib.K_cam2[0,0]
+camera_data.cx = dataset.calib.K_cam2[0,-1]
+camera_data.cy = dataset.calib.K_cam2[1,-1]
+transform_camera_vehicle = dataset.calib.T_cam2_velo
 
 # In[5]:
 bundle_adjuster = kfba.BundleAdjusterKeyframes()
@@ -55,7 +54,7 @@ tracker = t.TrackerLibViso()
 # In[8]:
 # Use itertools for iteration to preserve generator for data loading.
 # In python3 zip does that out of the box.
-for image, timestamp_sec in itertools.izip(dataset.cam0, dataset.timestamps):
+for image, timestamp in itertools.izip(dataset.cam0, dataset.timestamps):
     t.push_back(tracker, np.expand_dims(np.asarray(image), axis=-1))
 
     tracklets = t.get_tracklets(tracker)
@@ -66,5 +65,5 @@ for image, timestamp_sec in itertools.izip(dataset.cam0, dataset.timestamps):
     for t in tracklets_numpy:
         plt.plot(t[:,0], t[:,1])
 
-    kfba.execute_mono_bundle_adjustment(bundle_adjuster, tracklets_numpy, keyframe_selector, camera_data, timestamp_sec)
+    kfba.execute_mono_bundle_adjustment(bundle_adjuster, tracklets_numpy, keyframe_selector, camera_data, timestamp.total_seconds(), config)
 
