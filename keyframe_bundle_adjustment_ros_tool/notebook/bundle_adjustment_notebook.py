@@ -35,11 +35,11 @@ dataset = pykitti.odometry(basedir, sequence)
 
 # In[4]:
 camera_data  = kfba.CameraData()
-camera_data.focal_length = dataset.calib["K_cam0"][0,0]
-camera_data.cx = dataset.calib["K_cam0"][0,-1]
-camera_data.cy = dataset.calib["K_cam0"][1,-1]
+camera_data.focal_length = dataset.calib.K_cam0[0,0]
+camera_data.cx = dataset.calib.K_cam0[0,-1]
+camera_data.cy = dataset.calib.K_cam0[1,-1]
 camera_data.transform_camera_vehicle = np.eye(4)
-camera_data.transform_camera_vehicle[:3,:4] = dataset.calib["T_cam0_velo"]
+camera_data.transform_camera_vehicle[:3,:4] = dataset.calib.T_cam0_velo
 
 # In[5]:
 bundle_adjuster = kfba.BundleAdjusterKeyframes()
