@@ -299,6 +299,14 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
       .def_readwrite("max_solver_time", &Config::max_solver_time)
       .def_readwrite("outlier_labels_yaml", &Config::outlier_labels_yaml);
 
+  using TransformCameraVehicle = std::vector<double>;
+  p::class_<TransformCameraVehicle>("TransformCameraVehicle").def(p::vector_indexing_suite<TransformCameraVehicle>());
+  p::class_<CameraData>("CameraData", p::init<>())
+      .def_readwrite("focal_length", &CameraData::focal_length)
+      .def_readwrite("cx", &CameraData::cx)
+      .def_readwrite("cy", &CameraData::cy)
+      .def_readwrite("transform_camera_vehicle", &CameraData::transform_camera_vehicle);
+
   p::class_<keyframe_bundle_adjustment::Tracklets>("Tracklets", p::init<>());
 
   using Keyframes = std::vector<kfba::Keyframe>;
