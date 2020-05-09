@@ -8,7 +8,7 @@ import pykitti
 
 import feature_tracking_core.tracker_libviso as t
 
-import keyframe_bundle_adjustemnt_ros_tool.keyframe_bundle_adjustment_mono as kfba
+import keyframe_bundle_adjustment_ros_tool.keyframe_bundle_adjustment_mono as kfba
 
 # In[1]:
 basedir = '/limo_data/dataset'
