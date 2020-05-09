@@ -24,8 +24,16 @@ struct CameraData {
   double focal_length;
   double cx;
   double cy;
-  std::vector<double> transform_camera_vehicle;
 };
+
+std::vector<double> convert_ndarray_to_vector(const np::ndarray& input) {
+  int input_size = input.shape(0);
+  double* input_ptr = reinterpret_cast<double*>(input.get_data());
+  std::vector<double> v(input_size);
+  for (int i = 0; i < input_size; ++i)
+      v[i] = *(input_ptr + i);
+  return v;
+}
 
 struct Config {
   double height_over_ground;
@@ -51,10 +59,13 @@ void executeMonoBundleAdjustment(
     keyframe_bundle_adjustment::BundleAdjusterKeyframes &bundle_adjuster_,
     const keyframe_bundle_adjustment::Tracklets &tracklets,
     keyframe_bundle_adjustment::KeyframeSelector &keyframe_selector_,
-    const CameraData &camera_data, double cur_timestamp_sec,  
+    CameraData camera_data,
+    np::ndarray transform_camera_vehicle_array, 
+    double cur_timestamp_sec,  
     const Config &interface_) {
   // initiate camera
-  Eigen::Matrix4d m(camera_data.transform_camera_vehicle.data());
+  std::vector<double> transf_vec = convert_ndarray_to_vector(transform_camera_vehicle_array);
+  Eigen::Matrix4d m(transf_vec.data());
   Eigen::Isometry3d transform_camera_vehicle(m);
   keyframe_bundle_adjustment::Camera::Ptr camera =
       std::make_shared<keyframe_bundle_adjustment::Camera>(
@@ -299,13 +310,10 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
       .def_readwrite("max_solver_time", &Config::max_solver_time)
       .def_readwrite("outlier_labels_yaml", &Config::outlier_labels_yaml);
 
-  using TransformCameraVehicle = std::vector<double>;
-  p::class_<TransformCameraVehicle>("TransformCameraVehicle").def(p::vector_indexing_suite<TransformCameraVehicle>());
   p::class_<CameraData>("CameraData", p::init<>())
       .def_readwrite("focal_length", &CameraData::focal_length)
       .def_readwrite("cx", &CameraData::cx)
-      .def_readwrite("cy", &CameraData::cy)
-      .def_readwrite("transform_camera_vehicle", &CameraData::transform_camera_vehicle);
+      .def_readwrite("cy", &CameraData::cy);
 
   p::class_<keyframe_bundle_adjustment::Tracklets>("Tracklets", p::init<>());
 
