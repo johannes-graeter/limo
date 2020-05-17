@@ -6,7 +6,7 @@ import numpy as np
 import itertools
 import pykitti
 
-import feature_tracking_core.tracker_libviso as t
+import feature_tracking_core.tracker_libviso as tracker_libviso
 
 import keyframe_bundle_adjustment_ros_tool.keyframe_bundle_adjustment_mono as kfba
 
@@ -49,21 +49,21 @@ keyframe_selector = kfba.KeyframeSelector()
 kfba.init_keyframe_selector(keyframe_selector, config)
 
 # In[7]:
-tracker = t.TrackerLibViso()
+tracker = tracker_libviso.TrackerLibViso()
 
 # In[8]:
 # Use itertools for iteration to preserve generator for data loading.
 # In python3 zip does that out of the box.
-for image, timestamp in itertools.izip(dataset.cam0, dataset.timestamps):
-    t.push_back(tracker, np.expand_dims(np.asarray(image), axis=-1))
+for image, timestamp in itertools.izip(dataset.cam2, dataset.timestamps):
+    tracker_libviso.push_back(tracker, np.expand_dims(np.asarray(image), axis=-1))
 
-    tracklets = t.get_tracklets(tracker)
+    tracklets = tracker_libviso.get_tracklets(tracker)
     print("Number of tracklets={}".format(len(tracklets)))
     tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
 
-    plt.imshow(dataset.get_cam0(-1), cmap='gray')
-    for t in tracklets_numpy:
-        plt.plot(t[:,0], t[:,1])
+    # plt.imshow(dataset.get_cam0(-1), cmap='gray')
+    # for t in tracklets_numpy:
+    #     plt.plot(t[:,0], t[:,1])
 
     kfba.execute_mono_bundle_adjustment(bundle_adjuster, tracklets_numpy, keyframe_selector, camera_data, timestamp.total_seconds(), config)
 
