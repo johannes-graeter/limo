@@ -14,6 +14,7 @@
   <test_depend>gtest</test_depend>
 
   <depend>eigen</depend>
+  <depend>libboost-python</depend>
 
   <export>
     <!-- Other tools can request additional information be placed here -->
