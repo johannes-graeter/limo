@@ -7,6 +7,7 @@ import itertools
 import pykitti
 
 import feature_tracking_core.tracker_libviso as tracker_libviso
+from matches_msg_types.matches_msg as matches_msg
 
 import keyframe_bundle_adjustment_ros_tool.keyframe_bundle_adjustment_mono as kfba
 
@@ -51,19 +52,35 @@ kfba.init_keyframe_selector(keyframe_selector, config)
 # In[7]:
 tracker = tracker_libviso.TrackerLibViso()
 
+def convert_tracklets(tracklets, timestamps):
+    msg_tracklets = matches_msg.Tracklets()
+    for tracklet in tracklets:
+        msg_tracklet = matches_msg.Tracklet()
+        for match in tracklet:
+            msg_tracklet.feature_points.append(matches_msg.FeaturePoint(match.u_, match.v_))
+
+        msg_tracklet.id = tracklet.id_
+        msg_tracklets.tracks.append(msg_tracklet)
+
+    max_length = np.max([len(t.feature_points) for t in cur_tracklets.tracks])
+    msg_trackets.stamps = timestamps[:-max_length]
+
+def plot_image(image, tracklets):
+    tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
+    plt.imshow(image)
+    for t in tracklets_numpy:
+        plt.plot(t[:,0], t[:,1])
+
 # In[8]:
 # Use itertools for iteration to preserve generator for data loading.
 # In python3 zip does that out of the box.
+timestamps = []
 for image, timestamp in itertools.izip(dataset.cam2, dataset.timestamps):
-    tracker_libviso.push_back(tracker, np.expand_dims(np.asarray(image), axis=-1))
+    timestamps.append(timestamp)
+    tracker_libviso.push_back(tracker, np.asarray(image))
 
     tracklets = tracker_libviso.get_tracklets(tracker)
     print("Number of tracklets={}".format(len(tracklets)))
-    tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
 
-    # plt.imshow(dataset.get_cam0(-1), cmap='gray')
-    # for t in tracklets_numpy:
-    #     plt.plot(t[:,0], t[:,1])
-
-    kfba.execute_mono_bundle_adjustment(bundle_adjuster, tracklets_numpy, keyframe_selector, camera_data, timestamp.total_seconds(), config)
+    kfba.execute_mono_bundle_adjustment(bundle_adjuster, convert_tracklets(tracklets, timestamps), keyframe_selector, camera_data, timestamp.total_seconds(), config)
 
