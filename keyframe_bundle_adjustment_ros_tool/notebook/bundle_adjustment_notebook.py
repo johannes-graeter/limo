@@ -7,7 +7,7 @@ import itertools
 import pykitti
 
 import feature_tracking_core.tracker_libviso as tracker_libviso
-from matches_msg_types.matches_msg as matches_msg
+from matches_msg_types import matches_msg
 
 import keyframe_bundle_adjustment_ros_tool.keyframe_bundle_adjustment_mono as kfba
 
