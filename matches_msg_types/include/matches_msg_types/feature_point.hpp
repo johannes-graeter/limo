@@ -20,10 +20,14 @@ struct FeaturePoint {
     FeaturePoint(float u, float v, float d) : u(u), v(v), d(d) {
             ;
         }
+    
+    bool operator==(const FeaturePoint& rhs) const{
+        return u==rhs.u && v==rhs.v && d==rhs.d;
+    }
 
     float u;
     float v;
-    float d;
+    float d{-1};
 
     Eigen::Vector2d toEigen2d() const {
         return Eigen::Vector2d(u, v);

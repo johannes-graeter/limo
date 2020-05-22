@@ -16,7 +16,7 @@ BOOST_PYTHON_MODULE(matches_msg) {
     p::class_<FeaturePoint>("FeaturePoint", p::init<>())
 	.def(p::init<float, float>())
 	.def(p::init<float, float, float>())
-	.def_readwrite("u", &FeaturePoint:u)
+	.def_readwrite("u", &FeaturePoint::u)
 	.def_readwrite("v", &FeaturePoint::v)
 	.def_readwrite("d", &FeaturePoint::d);
 
