@@ -42,14 +42,6 @@ camera_data.cy = dataset.calib.K_cam2[1,-1]
 transform_camera_vehicle = dataset.calib.T_cam2_velo
 
 # In[5]:
-bundle_adjuster = kfba.BundleAdjusterKeyframes()
-kfba.init_bundle_adjuster(bundle_adjuster, config)
-
-# In[6]:
-keyframe_selector = kfba.KeyframeSelector()
-kfba.init_keyframe_selector(keyframe_selector, config)
-
-# In[7]:
 tracker = tracker_libviso.TrackerLibViso()
 
 def convert_tracklets(tracklets, timestamps):
@@ -57,13 +49,15 @@ def convert_tracklets(tracklets, timestamps):
     for tracklet in tracklets:
         msg_tracklet = matches_msg.Tracklet()
         for match in tracklet:
-            msg_tracklet.feature_points.append(matches_msg.FeaturePoint(match.u_, match.v_))
+            msg_tracklet.feature_points.append(matches_msg.FeaturePoint(match.p1_.u_, match.p1_.v_))
 
         msg_tracklet.id = tracklet.id_
         msg_tracklets.tracks.append(msg_tracklet)
 
-    max_length = np.max([len(t.feature_points) for t in cur_tracklets.tracks])
-    msg_trackets.stamps = timestamps[:-max_length]
+    max_length = np.max([len(t.feature_points) for t in msg_tracklets.tracks])
+    for s in timestamps[:-max_length]:
+        msg_tracklets.stamps.append(int(s.total_seconds()*1e9))
+    return msg_tracklets
 
 def plot_image(image, tracklets):
     tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
@@ -71,7 +65,14 @@ def plot_image(image, tracklets):
     for t in tracklets_numpy:
         plt.plot(t[:,0], t[:,1])
 
-# In[8]:
+# In[6]:
+keyframe_selector = kfba.KeyframeSelector()
+kfba.init_keyframe_selector(keyframe_selector, config)
+
+# In[7]:
+bundle_adjuster = kfba.BundleAdjusterKeyframes()
+kfba.init_bundle_adjuster(bundle_adjuster, config)
+
 # Use itertools for iteration to preserve generator for data loading.
 # In python3 zip does that out of the box.
 timestamps = []
@@ -82,5 +83,9 @@ for image, timestamp in itertools.izip(dataset.cam2, dataset.timestamps):
     tracklets = tracker_libviso.get_tracklets(tracker)
     print("Number of tracklets={}".format(len(tracklets)))
 
-    kfba.execute_mono_bundle_adjustment(bundle_adjuster, convert_tracklets(tracklets, timestamps), keyframe_selector, camera_data, timestamp.total_seconds(), config)
-
+    if len(tracklets) == 0:
+        continue
+    converted_tracklets = convert_tracklets(tracklets, timestamps)
+    kfba.execute_mono_bundle_adjustment(bundle_adjuster, converted_tracklets, keyframe_selector, camera_data, transform_camera_vehicle, timestamp.total_seconds(), config)
+    print(bundle_adjuster.keyframes[-1].pose)
+    print(bundle_adjuster.keyframes[-1].plane)
