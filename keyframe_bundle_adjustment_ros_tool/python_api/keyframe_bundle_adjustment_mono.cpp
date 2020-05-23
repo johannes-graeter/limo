@@ -287,6 +287,7 @@ void initKeyframeSelector(
 
 np::ndarray poseWrapper(keyframe_bundle_adjustment::Keyframe const& keyframe) {
   Eigen::Matrix4d pose = keyframe.getEigenPose().matrix();
+  std::cout<<pose<<std::endl;
 
   auto out = np::zeros(p::make_tuple(4, 4), np::dtype::get_builtin<double>());
   for (uint8_t i=0; i<4; i++) {
@@ -297,7 +298,7 @@ np::ndarray poseWrapper(keyframe_bundle_adjustment::Keyframe const& keyframe) {
   return out;
 }
 
-keyframe_bundle_adjustment::Keyframe getLastKeyframe(keyframe_bundle_adjustment::BundleAdjusterKeyframes const& ba, keyframe_bundle_adjustment::TimestampSec timestamp) {
+keyframe_bundle_adjustment::Keyframe getKeyframe(keyframe_bundle_adjustment::BundleAdjusterKeyframes const& ba, keyframe_bundle_adjustment::TimestampSec timestamp) {
   return ba.getKeyframe(timestamp);
 }
 
@@ -336,7 +337,7 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
 
   using Keyframes = std::vector<kfba::Keyframe>;
   p::class_<kfba::BundleAdjusterKeyframes>("BundleAdjusterKeyframes", p::init<>())
-      .def("get_keyframe", &getLastKeyframe, (p::arg("timestamp")=-1.0));
+      .def("get_keyframe", &getKeyframe, (p::arg("timestamp")=-1.0));
 
   p::class_<kfba::KeyframeSelector>("KeyframeSelector", p::init<>());
 
