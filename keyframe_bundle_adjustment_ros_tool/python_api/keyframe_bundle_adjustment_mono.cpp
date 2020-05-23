@@ -285,6 +285,22 @@ void initKeyframeSelector(
           interface_.time_between_keyframes_sec));
 }
 
+np::ndarray poseWrapper(keyframe_bundle_adjustment::Keyframe const& keyframe) {
+  Eigen::Matrix4d pose = keyframe.getEigenPose().matrix();
+
+  auto out = np::zeros(p::make_tuple(4, 4), np::dtype::get_builtin<double>());
+  for (uint8_t i=0; i<4; i++) {
+    for (uint8_t j=0; j<4; j++) {
+      out[i,j] = pose(i,j);
+    }
+  }
+  return out;
+}
+
+keyframe_bundle_adjustment::Keyframe getLastKeyframe(keyframe_bundle_adjustment::BundleAdjusterKeyframes const& ba, keyframe_bundle_adjustment::TimestampSec timestamp) {
+  return ba.getKeyframe(timestamp);
+}
+
 BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
   np::initialize(); // have to put this in any module that uses Boost.NumPy
 
@@ -294,7 +310,8 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
   // How to bind an enum class?
   p::class_<kfba::Keyframe>("Keyframe", p::init<>())
       .def(p::init<uint64_t, kfba::Tracklets, kfba::Camera::Ptr, Eigen::Isometry3d, kfba::Keyframe::FixationStatus, kfba::Plane>())
-      .def_readwrite("FixationStatus", &kfba::Keyframe::fixation_status_);
+      .def_readwrite("fixation_status", &kfba::Keyframe::fixation_status_)
+      .def("get_pose", &poseWrapper);
 
   p::class_<Config>("Config", p::init<>())
       .def_readwrite("height_over_ground", &Config::height_over_ground)
@@ -318,8 +335,8 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
   p::class_<keyframe_bundle_adjustment::Tracklets>("Tracklets", p::init<>());
 
   using Keyframes = std::vector<kfba::Keyframe>;
-  p::class_<kfba::BundleAdjusterKeyframes>("BundleAdjusterKeyframes", p::init<>());
-//.def_readwrite("keyframes", p::vector_indexing_suite<Keyframes>());
+  p::class_<kfba::BundleAdjusterKeyframes>("BundleAdjusterKeyframes", p::init<>())
+      .def("get_keyframe", &getLastKeyframe, (p::arg("timestamp")=-1.0));
 
   p::class_<kfba::KeyframeSelector>("KeyframeSelector", p::init<>());
 

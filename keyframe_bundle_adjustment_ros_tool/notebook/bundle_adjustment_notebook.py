@@ -87,5 +87,5 @@ for image, timestamp in itertools.izip(dataset.cam2, dataset.timestamps):
         continue
     converted_tracklets = convert_tracklets(tracklets, timestamps)
     kfba.execute_mono_bundle_adjustment(bundle_adjuster, converted_tracklets, keyframe_selector, camera_data, transform_camera_vehicle, timestamp.total_seconds(), config)
-    print(bundle_adjuster.keyframes[-1].pose)
+    print(bundle_adjuster.get_keyframe().get_pose())
     print(bundle_adjuster.keyframes[-1].plane)
