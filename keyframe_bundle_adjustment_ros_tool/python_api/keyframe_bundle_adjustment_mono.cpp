@@ -57,7 +57,7 @@ double to_nano_sec(double ts_sec){
 
 void executeMonoBundleAdjustment(
     keyframe_bundle_adjustment::BundleAdjusterKeyframes &bundle_adjuster_,
-    const keyframe_bundle_adjustment::Tracklets &tracklets,
+    const matches_msg_types::Tracklets &tracklets,
     keyframe_bundle_adjustment::KeyframeSelector &keyframe_selector_,
     CameraData camera_data,
     np::ndarray transform_camera_vehicle_array, 
@@ -79,6 +79,11 @@ void executeMonoBundleAdjustment(
         keyframe_bundle_adjustment::Keyframe::FixationStatus::None};
 
     // get motion corresponding to last keyframe
+    std::cout<<"!!! NUm tracklets="<<tracklets.tracks.size()<<std::endl;
+    std::cout<<"!!! NUm stamps="<<tracklets.stamps.size()<<std::endl;
+    if(tracklets.tracks.size()>0){
+    std::cout<<"!!! NUm feature_points="<<tracklets.tracks[0].feature_points.size()<<std::endl;
+    }
     auto start_time_5point = std::chrono::steady_clock::now();
     Eigen::Isometry3d motion_prior_vehicle_t1_t0 = keyframe_bundle_adjustment_ros_tool::helpers::getMotionUnscaled(
         camera_data.focal_length, cv::Point2d(camera_data.cx, camera_data.cy),
@@ -283,18 +288,43 @@ void initKeyframeSelector(
   keyframe_selector_.addScheme(
       keyframe_bundle_adjustment::KeyframeSparsificationSchemeTime::create(
           interface_.time_between_keyframes_sec));
+  std::cout<<interface_.min_median_flow<<","<<interface_.critical_rotation_difference<<","<<interface_.time_between_keyframes_sec<<std::endl;
 }
 
+///@brief Convert plane from keyframes to np array. 
+///       This is highly ineffecitve(3 copies) and could be done better.
+///@param keyframe Keyframe from bundle adjuster
+///@return pose as np array 
 np::ndarray poseWrapper(keyframe_bundle_adjustment::Keyframe const& keyframe) {
   Eigen::Matrix4d pose = keyframe.getEigenPose().matrix();
-  std::cout<<pose<<std::endl;
 
-  auto out = np::zeros(p::make_tuple(4, 4), np::dtype::get_builtin<double>());
-  for (uint8_t i=0; i<4; i++) {
-    for (uint8_t j=0; j<4; j++) {
-      out[i,j] = pose(i,j);
+  std::array<double, 16> arr;
+  for(int i;i<4;i++){
+    for(int j;j<4;j++){
+      arr[i*4+j] = pose(i,j);
     }
   }
+
+  auto out = np::zeros(p::make_tuple(4, 4), np::dtype::get_builtin<double>());
+  std::copy(arr.cbegin(), arr.cend(), reinterpret_cast<double*>(out.get_data()));
+  return out;
+}
+
+///@brief Convert pose frmo keyframes to np array. 
+///       This is highly ineffecitve(3 copies) and could be done better.
+///@param keyframe from bundle adjuster
+///@return local plane as [direction[:3], distance]
+np::ndarray planeWrapper(keyframe_bundle_adjustment::Keyframe const& keyframe) {
+  auto plane = keyframe.local_ground_plane_;
+
+  std::array<double, 4> arr;
+  for(int i;i<3;i++){
+    arr[i] = plane.direction[i];
+  }
+  arr[3] = plane.distance;
+
+  auto out = np::zeros(p::make_tuple(4), np::dtype::get_builtin<double>());
+  std::copy(arr.cbegin(), arr.cend(), reinterpret_cast<double*>(out.get_data()));
   return out;
 }
 
@@ -312,7 +342,8 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
   p::class_<kfba::Keyframe>("Keyframe", p::init<>())
       .def(p::init<uint64_t, kfba::Tracklets, kfba::Camera::Ptr, Eigen::Isometry3d, kfba::Keyframe::FixationStatus, kfba::Plane>())
       .def_readwrite("fixation_status", &kfba::Keyframe::fixation_status_)
-      .def("get_pose", &poseWrapper);
+      .def("get_pose", &poseWrapper)
+      .def("get_plane", &planeWrapper);
 
   p::class_<Config>("Config", p::init<>())
       .def_readwrite("height_over_ground", &Config::height_over_ground)
@@ -332,8 +363,6 @@ BOOST_PYTHON_MODULE(keyframe_bundle_adjustment_mono) {
       .def_readwrite("focal_length", &CameraData::focal_length)
       .def_readwrite("cx", &CameraData::cx)
       .def_readwrite("cy", &CameraData::cy);
-
-  p::class_<keyframe_bundle_adjustment::Tracklets>("Tracklets", p::init<>());
 
   using Keyframes = std::vector<kfba::Keyframe>;
   p::class_<kfba::BundleAdjusterKeyframes>("BundleAdjusterKeyframes", p::init<>())

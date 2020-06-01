@@ -52,6 +52,9 @@ def convert_tracklets(tracklets, timestamps):
             msg_tracklet.feature_points.append(matches_msg.FeaturePoint(match.p1_.u_, match.p1_.v_))
 
         msg_tracklet.id = tracklet.id_
+        msg_tracklet.age = tracklet.age_
+        msg_tracklet.is_outlier = False
+        msg_tracklet.label = 24
         msg_tracklets.tracks.append(msg_tracklet)
 
     max_length = np.max([len(t.feature_points) for t in msg_tracklets.tracks])
@@ -60,10 +63,10 @@ def convert_tracklets(tracklets, timestamps):
     return msg_tracklets
 
 def plot_image(image, tracklets):
-    tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
-    plt.imshow(image)
-    for t in tracklets_numpy:
-        plt.plot(t[:,0], t[:,1])
+   tracklets_numpy = [np.asarray([(point.p1_.u_, point.p1_.v_) for point in tracklet]) for tracklet in tracklets]
+   plt.imshow(image)
+   for t in tracklets_numpy:
+       plt.plot(t[:,0], t[:,1])
 
 # In[6]:
 keyframe_selector = kfba.KeyframeSelector()
@@ -88,4 +91,4 @@ for image, timestamp in itertools.izip(dataset.cam2, dataset.timestamps):
     converted_tracklets = convert_tracklets(tracklets, timestamps)
     kfba.execute_mono_bundle_adjustment(bundle_adjuster, converted_tracklets, keyframe_selector, camera_data, transform_camera_vehicle, timestamp.total_seconds(), config)
     print(bundle_adjuster.get_keyframe().get_pose())
-    print(bundle_adjuster.keyframes[-1].plane)
+    print(bundle_adjuster.get_keyframe().get_plane())
