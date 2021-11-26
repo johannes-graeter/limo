@@ -1,7 +1,8 @@
 <launch>
   <arg name="config" default="$(find keyframe_bundle_adjustment_ros_tool)/launch/params/mono_lidar_parameters.yaml" />
   <arg name="prior_vehicle_frame" default=""/> <!--if empty internal prior will be used-->
-  <arg name="tracklets_subscriber_topic" default="/tracklets_depth/tracklets/left/with_outlier_label"/>
++  <!-- <arg name="tracklets_subscriber_topic" default="/tracklets_depth/tracklets/left/with_outlier_label"/> -->
++  <arg name="tracklets_subscriber_topic" default="/tracklets_depth/tracklets/left/with_outlier_dummy"/>
   <arg name="camera_info_topic" default="/sensor/camera/grayscale/left/camera_info"/>
   <arg name="outlier_labels_yaml" default="$(find keyframe_bundle_adjustment_ros_tool)/res/outlier_labels.yaml"/>
   <arg name="calib_target_frame_id" default="estimate/sensor/camera/grayscale/left"/>

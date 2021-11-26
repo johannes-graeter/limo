@@ -168,5 +168,31 @@ This is a bag file generated from Kitti sequence 04 with added semantic labels.
 * Before submitting an issue, please have a look at the section [Known issues](#known-issues).
 
 ## Known issues
-* Unittest of LandmarkSelector.voxel fails with libpcl version 1.7.2 or smaller (just 4 landmarks are selected). 
+
+### Unit Test Issue
+Unittest of LandmarkSelector.voxel fails with libpcl version 1.7.2 or smaller (just 4 landmarks are selected). 
 Since this works with pcl 1.8.1 which is standard for ros melodic, this is ignored. This should lower the performance of the software only by a very small amount.
+
+
+### Build Issue
+
+I tried the below steps to setup the test but meeting some roslaunch errors:
+
+1. Install Ceres: just follow the steps in the link http://ceres-solver.org/installation.html with only change as using `sudo make install` at last
+2. Install libpng++ `sudo apt-get install libpng++-dev`
+3. Install ROS melodic (I have already done this): https://wiki.ros.org/melodic/Installation
+4. Install catkin_tools: `sudo apt-get install python-catkin-tools`
+5. Install opencv_apps: `sudo apt-get install ros-melodic-opencv-apps`
+6. Install git  (I have already done this): `sudo apt-get install git`
+
+`error: expected constructor, destructor, or type conversion before ‘(’ token PLUGINLIB_DECLARE_CLAS`: How to fix is to replace the `PLUGINLIB_DECLARE_CLAS(AXX, BXX, AXX::BXX, ...)` into `PLUGINLIB_EXPORT_CLAS(AXX::BXX, ...)`
+
+I have met this for three files:
+
+1. ~/catkin_ws/src/feature_tracking/viso_feature_tracking_ros_tool/src/feature_tracking_contour_roi/feature_tracking_contour_roi_nodelet.cpp
+2. ~/catkin_ws/src/feature_tracking/image_preproc_ros_tool/src/resize/resize_nodelet.cpp
+3. ~/catkin_ws/src/feature_tracking/image_preproc_ros_tool/src/gamma_correction/gamma_correction_nodelet.cpp
+
+After fixing this, the build is successful. The credits go to those two posts:
+1. https://blog.csdn.net/weixin_42344264/article/details/105617317
+2. https://github.com/KumarRobotics/msckf_vio/pull/72

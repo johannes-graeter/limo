@@ -50,7 +50,8 @@
   </node>
 
   <!-- Add labels from semantic labeling to matches. -->
-  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>
+-  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>
++  <!-- <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/semantic_labels.launch"/>-->
 
   <!-- launch keyframe bundle adjustment -->
   <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/keyframe_ba_monolid.launch">
