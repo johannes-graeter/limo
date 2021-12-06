@@ -290,7 +290,7 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
                 ROS_DEBUG_STREAM("In MonoLidar: dump prior");
             }
 
-            file << std::endl << helpers::poseToString(pose_origin_camera.matrix()) << std::flush;
+            file << std::endl << std::to_string(tracklets_msg->stamps[0].toNSec()) << " " <<  helpers::poseToString(pose_origin_camera.matrix()) << std::flush;
             file.close();
             ROS_DEBUG_STREAM("In MonoLidar: dumped pose=\n"
                              << pose_origin_camera.matrix()
@@ -319,7 +319,7 @@ void MonoLidar::callbackSubscriber(const TrackletsMsg::ConstPtr& tracklets_msg,
             std::ofstream file;
             file.open(interface_.dump_path.c_str());
             file.precision(12);
-            file << helpers::poseToString(Eigen::Matrix<double, 4, 4>::Identity());
+            file << std::to_string(tracklets_msg->stamps[0].toNSec()) << " " <<  helpers::poseToString(Eigen::Matrix<double, 4, 4>::Identity());
             file.close();
         }
     }
