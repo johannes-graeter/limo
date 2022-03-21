@@ -74,6 +74,10 @@ RUN rm -rf /workspace/limo_ws/src/limo \
     && rm -rf /workspace/limo_ws/src/rosinterface_handler \
     && git clone https://github.com/johannes-graeter/rosinterface_handler.git
 
+# solve issue https://github.com/johannes-graeter/limo/issues/50
+RUN cp -rf /usr/include/eigen3/Eigen /usr/include/Eigen -R
+RUN ln -sf /usr/include/eigen3/Eigen /usr/include/Eigen
+
 WORKDIR /workspace/limo_ws/
 RUN /bin/bash -c 'source /opt/ros/melodic/setup.bash && catkin build'
 
