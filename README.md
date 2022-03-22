@@ -1,5 +1,20 @@
 # Limo
 
+-------------------------------------------------------------------------------------------------------
+CALL FOR HACKATHON:
+Against all my expectations my work still invokes the interest of many. Since it aged quite a bit now, I would love to organize a Hackathon were people who love to code such as me take part to refurbish this repo. Possible things to do are:
+1. Make a standalone api that works without ros
+2. Make a python api (already started)
+3. Bring repo to C++20 as much as possible (basis is ros indepedant app)
+4. constexpr everything (as much as possible)
+5. ROS2
+6. Remake of the lidar point depth extraction module
+
+But for this I need YOUR HELP! Your reward will be a lot of fun, working together on a project with experienced devs and of course a contribution record (that looks pretty neat in applications ;) ).
+If you are interested, please contact me per mail or write an issue. If there is more than 2 people plus me, I will organize a date :)
+
+-------------------------------------------------------------------------------------------------------
+
 Lidar-Monocular Visual Odometry.
 This library is designed to be an open platform for visual odometry algortihm development.
 We focus explicitely on the simple integration of the following key methodologies:
