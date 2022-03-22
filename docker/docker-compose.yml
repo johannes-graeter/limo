@@ -8,7 +8,11 @@ services:
     image: ros:melodic-perception
     ports:
       - 8888:8888
+    environment:
+      - DISPLAY=${DISPLAY}
     volumes:
-      - $HOME/limo_data:/limo_data
+      - $HOME/limo_data:/limo_data 
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    # network_mode: host #  error: conflicting options: host type networking can't be used with links comment to avoid it
     stdin_open: true
     tty: true
