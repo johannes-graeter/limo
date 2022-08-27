@@ -24,6 +24,7 @@ RUN apt update && apt install --no-install-recommends -y \
     ros-melodic-opencv-apps \
     ros-melodic-diagnostic-updater \
     ros-melodic-tf-conversions \
+    ros-melodic-rviz \
     lcov \
     tmux \
     python-pip \
@@ -31,10 +32,12 @@ RUN apt update && apt install --no-install-recommends -y \
     && rm -rf /var/lib/apt/lists/* \
     && rm -rf /tmp/*
 
+RUN pip install --upgrade pip
+
 RUN pip install pykitti \
     jupyter \
     jupytext --upgrade
-
+    
 # Install ceres solver
 # Why is rm necessary? remove it when solved.
 # WORKDIR /opt
