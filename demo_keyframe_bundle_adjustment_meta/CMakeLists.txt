@@ -73,6 +73,8 @@ link_directories(
 
 add_executable(main_program ${CMAKE_CURRENT_SOURCE_DIR}/apps/main_program.cpp)
 
+add_executable(kitti_bag ${CMAKE_CURRENT_SOURCE_DIR}/apps/kittibag.cpp)
+
 glob_folders(SRC_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src")
 if (SRC_DIRECTORIES)
     # Found subfolders, add executable for each subfolder
