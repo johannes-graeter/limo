@@ -71,7 +71,7 @@ link_directories(
     ${mrt_LIBRARY_DIRS}
     )
 
-add_executable(kitti_demo_program ${CMAKE_CURRENT_SOURCE_DIR}/apps/main.cpp)
+add_executable(main_program ${CMAKE_CURRENT_SOURCE_DIR}/apps/main_program.cpp)
 
 glob_folders(SRC_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/src")
 if (SRC_DIRECTORIES)
