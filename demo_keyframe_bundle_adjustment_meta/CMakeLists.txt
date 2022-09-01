@@ -82,6 +82,17 @@ else()
     mrt_add_node_and_nodelet(${PROJECT_NAME} FOLDER "src")
 endif()
 
+
+mrt_glob_folders(APP_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/apps")
+if (APP_DIRECTORIES)
+    # Found subfolders, add executable for each subfolder
+    foreach(APP_DIR ${APP_DIRECTORIES})
+        mrt_add_executable(${APP_DIR} FOLDER "apps/${APP_DIR}")
+    endforeach()
+else()
+    # No subfolder found, add executable and python modules for src folder
+    mrt_add_executable(${PROJECT_NAME} FOLDER "apps")
+endif()
 #############
 ## Install ##
 #############
