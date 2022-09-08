@@ -19,6 +19,8 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <image_preproc_ros_tool/gamma_correction.h>
+
 std::vector<float> read_lidar_data(const std::string lidar_data_path)
 {
     std::ifstream lidar_data_file(lidar_data_path, std::ifstream::in | std::ifstream::binary);
@@ -34,6 +36,8 @@ std::vector<float> read_lidar_data(const std::string lidar_data_path)
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "kitti_helper");
+    ros::NodeHandle publicNH;
+
     ros::NodeHandle n("~");
     std::string dataset_folder, sequence_number, output_bag_file;
     n.getParam("dataset_folder", dataset_folder);
@@ -52,6 +56,8 @@ int main(int argc, char** argv)
     image_transport::ImageTransport it(n);
     image_transport::Publisher pub_image_left = it.advertise("/image_left", 2);
     image_transport::Publisher pub_image_right = it.advertise("/image_right", 2);
+
+    GammaCorrector corrector(publicNH, n, ros::this_node::getName());
 
     ros::Publisher pubOdomGT = n.advertise<nav_msgs::Odometry> ("/odometry_gt", 5);
     nav_msgs::Odometry odomGT;
