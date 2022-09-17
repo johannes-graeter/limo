@@ -49,15 +49,15 @@ bool read_lidar_data(const std::string lidar_data_path, std::vector<Eigen::Vecto
     std::vector<float> lidar_data_buffer(num_elements);
     lidar_data_file.read(reinterpret_cast<char *>(&lidar_data_buffer[0]), num_elements * sizeof(float));
 
-    printf("Read %ld points in this lidar frame\n", lidar_data.size() / 4);
+    printf("Read %ld points in this lidar frame\n", lidar_data_buffer.size() / 4);
 
-    for (std::size_t i = 0; i < lidar_data.size(); i += 4)
+    for (std::size_t i = 0; i < lidar_data_buffer.size(); i += 4)
     {
         pcl::PointXYZI point;
-        point.x = lidar_data[i];
-        point.y = lidar_data[i + 1];
-        point.z = lidar_data[i + 2];
-        point.intensity = lidar_data[i + 3];
+        point.x = lidar_data_buffer[i];
+        point.y = lidar_data_buffer[i + 1];
+        point.z = lidar_data_buffer[i + 2];
+        point.intensity = lidar_data_buffer[i + 3];
         laser_cloud.push_back(point);
 
         lidar_points.emplace_back(point.x, point.y, point.z);
@@ -66,8 +66,8 @@ bool read_lidar_data(const std::string lidar_data_path, std::vector<Eigen::Vecto
     return true;
 }
 
-bool read_gt_pose(const string& value_string, nav_msgs::Odometry& odomGT, nav_msgs::Path& pathGT) {
-    std::stringstream pose_stream(line);
+bool read_gt_pose(const std::string& value_string, const Eigen::Quaterniond& q_transform, float timestamp, nav_msgs::Odometry& odomGT, nav_msgs::Path& pathGT) {
+    std::stringstream pose_stream(value_string);
     std::string s;
     // Eigen::Matrix<double, 3, 4> gt_pose;
     Eigen::Affine3d gt_pose;
@@ -169,7 +169,7 @@ int main(int argc, char **argv) {
         std::getline(ground_truth_file, line);
 
         // Read the ground truth pose data from the file.
-        if (!read_gt_pose(line, odomGT, pathGT)) {
+        if (!read_gt_pose(line, q_transform, timestamp, odomGT, pathGT)) {
             printf("Failed to read the ground truth pose data\n");
             return -1;
         }
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
         std::vector<Eigen::Vector3d> lidar_points;
         std::vector<float> lidar_intensities;
         pcl::PointCloud<pcl::PointXYZI> laser_cloud;
-        if (!read_lidar_data(lidar_data_path.str()), lidar_points, lidar_intensities, laser_cloud) {
+        if (!read_lidar_data(lidar_data_path.str(), lidar_points, lidar_intensities, laser_cloud)) {
             printf("Failed to read the lidar data from the path %s\n", lidar_data_path.str());
             return -1;
         }
