@@ -1,3 +1,18 @@
+/**
+LIMO 2022
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+\author Hojun Ji
+**/
+
 #include <iostream>
 #include <fstream>
 #include <iterator>
@@ -19,22 +34,78 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <image_preproc_ros_tool/gamma_correction.h>
+// #include <image_preproc_ros_tool/gamma_correction.h>
 
-std::vector<float> read_lidar_data(const std::string lidar_data_path)
-{
+bool read_lidar_data(const std::string lidar_data_path, std::vector<Eigen::Vector3d> &lidar_points,
+                     std::vector<float> &lidar_intensities, pcl::PointCloud<pcl::PointXYZI> &laser_cloud) {
     std::ifstream lidar_data_file(lidar_data_path, std::ifstream::in | std::ifstream::binary);
+    if (!lidar_data_file.is_open()) {
+        return false;
+    }
     lidar_data_file.seekg(0, std::ios::end);
     const size_t num_elements = lidar_data_file.tellg() / sizeof(float);
     lidar_data_file.seekg(0, std::ios::beg);
 
     std::vector<float> lidar_data_buffer(num_elements);
-    lidar_data_file.read(reinterpret_cast<char*>(&lidar_data_buffer[0]), num_elements*sizeof(float));
-    return lidar_data_buffer;
+    lidar_data_file.read(reinterpret_cast<char *>(&lidar_data_buffer[0]), num_elements * sizeof(float));
+
+    printf("Read %ld points in this lidar frame\n", lidar_data.size() / 4);
+
+    for (std::size_t i = 0; i < lidar_data.size(); i += 4)
+    {
+        pcl::PointXYZI point;
+        point.x = lidar_data[i];
+        point.y = lidar_data[i + 1];
+        point.z = lidar_data[i + 2];
+        point.intensity = lidar_data[i + 3];
+        laser_cloud.push_back(point);
+
+        lidar_points.emplace_back(point.x, point.y, point.z);
+        lidar_intensities.push_back(point.intensity);
+    }
+    return true;
 }
 
-int main(int argc, char** argv)
-{
+bool read_gt_pose(const string& value_string, nav_msgs::Odometry& odomGT, nav_msgs::Path& pathGT) {
+    std::stringstream pose_stream(line);
+    std::string s;
+    // Eigen::Matrix<double, 3, 4> gt_pose;
+    Eigen::Affine3d gt_pose;
+    geometry_msgs::PoseStamped poseGT;
+
+    for (std::size_t i = 0; i < 3; ++i)
+    {
+        for (std::size_t j = 0; j < 4; ++j)
+        {
+            std::getline(pose_stream, s, ' ');
+            if (s.empty()) return false;
+            gt_pose.matrix()(i, j) = stof(s);
+        }
+    }
+
+    Eigen::Quaterniond q_w_i(gt_pose.matrix().topLeftCorner<3, 3>());
+    Eigen::Quaterniond q = q_transform * q_w_i;
+    q.normalize();
+    Eigen::Vector3d t = q_transform * gt_pose.matrix().topRightCorner<3, 1>();
+
+    odomGT.header.stamp = ros::Time().fromSec(timestamp);
+    odomGT.pose.pose.orientation.x = q.x();
+    odomGT.pose.pose.orientation.y = q.y();
+    odomGT.pose.pose.orientation.z = q.z();
+    odomGT.pose.pose.orientation.w = q.w();
+    odomGT.pose.pose.position.x = t(0);
+    odomGT.pose.pose.position.y = t(1);
+    odomGT.pose.pose.position.z = t(2);
+
+    poseGT.header = odomGT.header;
+    poseGT.pose = odomGT.pose.pose;
+    pathGT.header.stamp = odomGT.header.stamp;
+    pathGT.poses.push_back(poseGT);
+    return true;
+}
+
+
+int main(int argc, char **argv) {
     ros::init(argc, argv, "kitti_helper");
     ros::NodeHandle publicNH;
 
@@ -57,14 +128,14 @@ int main(int argc, char** argv)
     image_transport::Publisher pub_image_left = it.advertise("/image_left", 2);
     image_transport::Publisher pub_image_right = it.advertise("/image_right", 2);
 
-    GammaCorrector corrector(publicNH, n, ros::this_node::getName());
+    // GammaCorrector corrector(publicNH, n, ros::this_node::getName());
 
-    ros::Publisher pubOdomGT = n.advertise<nav_msgs::Odometry> ("/odometry_gt", 5);
+    ros::Publisher pubOdomGT = n.advertise<nav_msgs::Odometry>("/odometry_gt", 5);
     nav_msgs::Odometry odomGT;
     odomGT.header.frame_id = "/camera_init";
     odomGT.child_frame_id = "/ground_truth";
 
-    ros::Publisher pubPathGT = n.advertise<nav_msgs::Path> ("/path_gt", 5);
+    ros::Publisher pubPathGT = n.advertise<nav_msgs::Path>("/path_gt", 5);
     nav_msgs::Path pathGT;
     pathGT.header.frame_id = "/camera_init";
 
@@ -77,7 +148,7 @@ int main(int argc, char** argv)
     rosbag::Bag bag_out;
     if (to_bag)
         bag_out.open(output_bag_file, rosbag::bagmode::Write);
-    
+
     Eigen::Matrix3d R_transform;
     R_transform << 0, 0, 1, -1, 0, 0, 0, -1, 0;
     Eigen::Quaterniond q_transform(R_transform);
@@ -94,63 +165,30 @@ int main(int argc, char** argv)
         cv::Mat left_image = cv::imread(left_image_path.str(), CV_LOAD_IMAGE_GRAYSCALE);
         right_image_path << dataset_folder << "sequences/" + sequence_number + "/image_1/" << std::setfill('0') << std::setw(6) << line_num << ".png";
         cv::Mat right_image = cv::imread(left_image_path.str(), CV_LOAD_IMAGE_GRAYSCALE);
-
+        
         std::getline(ground_truth_file, line);
-        std::stringstream pose_stream(line);
-        std::string s;
-        Eigen::Matrix<double, 3, 4> gt_pose;
-        for (std::size_t i = 0; i < 3; ++i)
-        {
-            for (std::size_t j = 0; j < 4; ++j)
-            {
-                std::getline(pose_stream, s, ' ');
-                gt_pose(i, j) = stof(s);
-            }
+
+        // Read the ground truth pose data from the file.
+        if (!read_gt_pose(line, odomGT, pathGT)) {
+            printf("Failed to read the ground truth pose data\n");
+            return -1;
         }
 
-        Eigen::Quaterniond q_w_i(gt_pose.topLeftCorner<3, 3>());
-        Eigen::Quaterniond q = q_transform * q_w_i;
-        q.normalize();
-        Eigen::Vector3d t = q_transform * gt_pose.topRightCorner<3, 1>();
-
-        odomGT.header.stamp = ros::Time().fromSec(timestamp);
-        odomGT.pose.pose.orientation.x = q.x();
-        odomGT.pose.pose.orientation.y = q.y();
-        odomGT.pose.pose.orientation.z = q.z();
-        odomGT.pose.pose.orientation.w = q.w();
-        odomGT.pose.pose.position.x = t(0);
-        odomGT.pose.pose.position.y = t(1);
-        odomGT.pose.pose.position.z = t(2);
+        // Publish the ground truth odom data.
         pubOdomGT.publish(odomGT);
-
-        geometry_msgs::PoseStamped poseGT;
-        poseGT.header = odomGT.header;
-        poseGT.pose = odomGT.pose.pose;
-        pathGT.header.stamp = odomGT.header.stamp;
-        pathGT.poses.push_back(poseGT);
         pubPathGT.publish(pathGT);
 
         // read lidar point cloud
         std::stringstream lidar_data_path;
-        lidar_data_path << dataset_folder << "sequences/" + sequence_number + "/velodyne/" 
+        lidar_data_path << dataset_folder << "sequences/" + sequence_number + "/velodyne/"
                         << std::setfill('0') << std::setw(6) << line_num << ".bin";
-        std::vector<float> lidar_data = read_lidar_data(lidar_data_path.str());
-        std::cout << "totally " << lidar_data.size() / 4.0 << " points in this lidar frame \n";
 
         std::vector<Eigen::Vector3d> lidar_points;
         std::vector<float> lidar_intensities;
         pcl::PointCloud<pcl::PointXYZI> laser_cloud;
-        for (std::size_t i = 0; i < lidar_data.size(); i += 4)
-        {
-            lidar_points.emplace_back(lidar_data[i], lidar_data[i+1], lidar_data[i+2]);
-            lidar_intensities.push_back(lidar_data[i+3]);
-
-            pcl::PointXYZI point;
-            point.x = lidar_data[i];
-            point.y = lidar_data[i + 1];
-            point.z = lidar_data[i + 2];
-            point.intensity = lidar_data[i + 3];
-            laser_cloud.push_back(point);
+        if (!read_lidar_data(lidar_data_path.str()), lidar_points, lidar_intensities, laser_cloud) {
+            printf("Failed to read the lidar data from the path %s\n", lidar_data_path.str());
+            return -1;
         }
 
         sensor_msgs::PointCloud2 laser_cloud_msg;
@@ -173,12 +211,11 @@ int main(int argc, char** argv)
             bag_out.write("/odometry_gt", ros::Time::now(), odomGT);
         }
 
-        line_num ++;
+        line_num++;
         r.sleep();
     }
     bag_out.close();
     std::cout << "Done \n";
-
 
     return 0;
 }
