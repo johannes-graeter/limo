@@ -20,7 +20,11 @@
   <!-- <depend>rospy</depend> Use this instead of roscpp  when writing a python node -->
   <depend>roslib</depend>
   <depend>nodelet</depend>
-
+  <depend>mrt_pcl</depend>
+  <depend>image_transport</depend>
+  <depend>rosbag</depend>
+  <depend>mrt_opencv</depend>
+  <depend>cv_bridge</depend>
   <!--
     Documentation for dependencies:
     <build_depend>            Build-time dependency required to build

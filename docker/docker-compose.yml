@@ -8,8 +8,14 @@ services:
     image: ros:melodic-perception
     ports:
       - 8888:8888
+    network_mode: host
+    ipc: host
+    privileged: true  
+    runtime: nvidia
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=unix${DISPLAY}
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     volumes:
       - $HOME/limo_data:/limo_data 
       - /tmp/.X11-unix:/tmp/.X11-unix
