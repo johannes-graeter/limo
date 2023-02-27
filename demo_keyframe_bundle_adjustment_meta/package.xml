@@ -46,6 +46,7 @@
     
     <depend>util_nodes_tf2_ros_tool</depend> 
     <depend>image_preproc_ros_tool</depend> 
+    <depend>image_preproc</depend> 
     <depend>keyframe_bundle_adjustment_ros_tool</depend> 
     <depend>tracklets_depth_ros_tool</depend>
     <depend>matches_conversion_ros_tool</depend>

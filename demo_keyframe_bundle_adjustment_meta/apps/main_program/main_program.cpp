@@ -35,8 +35,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
-#include <image_preproc_ros_tool/gamma_correction.h>
-
+#include <image_preproc/gamma_corrector.h>
+// #include <image_preproc_ros_tool/disp2pointcloud.hpp>
+// src/feature_tracking/image_preproc_ros_tool/src/
 bool read_lidar_data(const std::string lidar_data_path, std::vector<Eigen::Vector3d> &lidar_points,
                      std::vector<float> &lidar_intensities, pcl::PointCloud<pcl::PointXYZI> &laser_cloud) {
     std::ifstream lidar_data_file(lidar_data_path, std::ifstream::in | std::ifstream::binary);
@@ -128,9 +129,7 @@ int main(int argc, char **argv) {
     image_transport::ImageTransport it(n);
     image_transport::Publisher pub_image_left = it.advertise("/image_left", 2);
     image_transport::Publisher pub_image_right = it.advertise("/image_right", 2);
-    printf("Gamma corrector init\n");
-    GammaCorrector corrector(publicNH, n, ros::this_node::getName());
-    printf("Init finished\n");
+
     ros::Publisher pubOdomGT = n.advertise<nav_msgs::Odometry>("/odometry_gt", 5);
     nav_msgs::Odometry odomGT;
     odomGT.header.frame_id = "/camera_init";
@@ -156,6 +155,10 @@ int main(int argc, char **argv) {
 
     std::string line;
     std::size_t line_num = 0;
+
+    printf("Gamma corrector init\n");
+    image_preproc::GammaCorrector corrector();
+    printf("Init finished\n");
 
     ros::Rate r(10.0 / publish_delay);
     while (std::getline(timestamp_file, line) && ros::ok())
