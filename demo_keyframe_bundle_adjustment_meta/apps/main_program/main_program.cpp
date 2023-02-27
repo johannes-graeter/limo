@@ -35,6 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <pcl_conversions/pcl_conversions.h>
 #include <sensor_msgs/PointCloud2.h>
 
+#include <image_preproc/image_preproc_params.h>
 #include <image_preproc/gamma_corrector.h>
 // #include <image_preproc_ros_tool/disp2pointcloud.hpp>
 // src/feature_tracking/image_preproc_ros_tool/src/
@@ -157,7 +158,7 @@ int main(int argc, char **argv) {
     std::size_t line_num = 0;
 
     printf("Gamma corrector init\n");
-    image_preproc::GammaCorrector corrector();
+    image_preproc::GammaCorrector corrector;
     printf("Init finished\n");
 
     ros::Rate r(10.0 / publish_delay);
@@ -169,7 +170,12 @@ int main(int argc, char **argv) {
         cv::Mat left_image = cv::imread(left_image_path.str(), CV_LOAD_IMAGE_GRAYSCALE);
         right_image_path << dataset_folder << "sequences/" + sequence_number + "/image_1/" << std::setfill('0') << std::setw(6) << line_num << ".png";
         cv::Mat right_image = cv::imread(left_image_path.str(), CV_LOAD_IMAGE_GRAYSCALE);
-        
+        cv::Mat left_processed;
+        corrector.processImage(left_image, left_processed);
+        cv::imshow("Original", left_image);
+
+        cv::imshow("Processed", left_processed);
+        cv::waitKey(1);
         std::getline(ground_truth_file, line);
 
         // Read the ground truth pose data from the file.
@@ -194,7 +200,6 @@ int main(int argc, char **argv) {
             printf("Failed to read the lidar data from the path %s\n", lidar_data_path.str());
             return -1;
         }
-
         sensor_msgs::PointCloud2 laser_cloud_msg;
         pcl::toROSMsg(laser_cloud, laser_cloud_msg);
         laser_cloud_msg.header.stamp = ros::Time().fromSec(timestamp);
