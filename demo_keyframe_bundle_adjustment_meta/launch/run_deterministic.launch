@@ -1,0 +1,11 @@
+<launch>
+  <!--must be set before launchfile starts-->
+  <!-- <rosparam param="use_sim_time" subst_value="True"> true </rosparam> -->
+  <node pkg="demo_keyframe_bundle_adjustment_meta" type="main_program" name="main_program" output="screen" required="true">
+    <param name="dataset_folder" value="/limo_data/dataset/"/>
+    <param name="sequence_number" value="/04"/>
+    <param name="to_bag" value="false"/>
+    <param name="publish_delay" value="1"/>
+    <param name="viso_config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/config_feature_matching.yaml" />
+  </node>
+</launch>
