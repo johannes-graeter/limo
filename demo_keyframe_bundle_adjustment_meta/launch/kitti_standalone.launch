@@ -12,7 +12,6 @@
   </include>
 
   <!-- depth estimator tracklets node -->
-  
   <arg name="config_depth_estimator" default="$(find demo_keyframe_bundle_adjustment_meta)/res/mono_lidar_fusion_parameters.yaml"/>
   <arg name="config_tracklets_depth" default="$(find demo_keyframe_bundle_adjustment_meta)/res/config_tracklets_depth_ros_tool.yaml"/>
   <!-- <node pkg="nodelet" type="nodelet" name="tracklets_depth_nodelet" args="load tracklets_depth_ros_tool/TrackletDepthNodelet $(arg nodelet_manager_name)" output="screen" required="true"> -->

@@ -35,6 +35,8 @@
   <depend>viso_feature_tracking_ros_tool</depend>
   
   <depend>viso_feature_tracking</depend>
+  <depend>tracklets_depth</depend>
+  <depend>monolidar_fusion</depend>
   <depend>matches_msg_ros</depend>
   <depend>yaml-cpp</depend>
 

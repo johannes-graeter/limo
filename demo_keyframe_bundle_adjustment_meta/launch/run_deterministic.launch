@@ -1,11 +1,32 @@
 <launch>
-  <!--must be set before launchfile starts-->
-  <!-- <rosparam param="use_sim_time" subst_value="True"> true </rosparam> -->
+    <!--define aliases and static transforms-->
+  <include file="$(find demo_keyframe_bundle_adjustment_meta)/launch/tf2_static_aliases_kitti.launch">
+    <arg name="tf_namespace_alias" value="estimate"/>
+  </include>
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_vehicle_left_camera_estimate_prior" args="0 1.35 -1.08 1.5707963 -1.5707963 0 estimate_prior/sensor/camera estimate_prior/vehicle" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs_left_camera_estimate_prior" args="0 1.35 -1.08 1.5707963 -1.5707963 0 estimate_prior/local_cs estimate_prior/local_cs_vehicle" required="true"/>
+
+  <!-- This connects trres estimate_prior and estimate in case you wanted to calculate a transform between the two of them. -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_estimate_prior" args="0. 0. 0. 0. 0. 0. estimate/local_cs estimate_prior/local_cs" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs" args="0. 0. 0. 0. 0. 0. estimate/local_cs local_cs" required="true"/>
+  
+  <!-- Remapping of topics for gt -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_vehicle_camera_vehicle_gt" args=" 0 1.35 -1.08 1.5707963 -1.5707963 0 sensor/camera gt/vehicle" required="true"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="transform_local_cs_camera_gt" args="0 1.35 -1.08 1.5707963 -1.5707963 0 local_cs gt/local_cs_vehicle" required="true"/>
+
+  
   <node pkg="demo_keyframe_bundle_adjustment_meta" type="main_program" name="main_program" output="screen" required="true">
     <param name="dataset_folder" value="/limo_data/dataset/"/>
     <param name="sequence_number" value="/04"/>
     <param name="to_bag" value="false"/>
     <param name="publish_delay" value="1"/>
     <param name="viso_config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/config_feature_matching.yaml" />
+    <param name="tracklet_depth_config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/mono_lidar_fusion_parameters.yaml" />
+    <param name="depth_estimator_config" value="$(find demo_keyframe_bundle_adjustment_meta)/res/config_tracklets_depth_ros_tool.yaml" />
+  
   </node>
+
+
+
 </launch>
