@@ -1,11 +1,11 @@
-version: '3.4'
+version: '3.8'
 
 services:
   limo:
     container_name: limo
     build:
       context: ./src
-    image: ros:melodic-perception
+    image: limo
     ports:
       - 8888:8888
     ipc: host
@@ -13,11 +13,23 @@ services:
     runtime: nvidia
     environment:
       - DISPLAY=unix${DISPLAY}
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=all
-    volumes:
-      - $HOME/limo_data:/limo_data 
-      - /tmp/.X11-unix:/tmp/.X11-unix
-    # network_mode: host #  error: conflicting options: host type networking can't be used with links comment to avoid it
     stdin_open: true
     tty: true
+    volumes:
+      - $HOME/limo_data:/limo_data 
+      - ../:/workspace/limo
+      - /tmp/.X11-unix:/tmp/.X11-unix:ro
+      # Use the same users and sudo file as the host
+      - /etc/group:/etc/group:ro
+      - /etc/passwd:/etc/passwd:ro
+      - /etc/shadow:/etc/shadow:ro
+      - /etc/sudoers:/etc/sudoers:ro
+      - /etc/sudoers.d:/etc/sudoers.d:ro
+    cap_add:
+      # This is required for ptrace based debugging
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - seccomp=unconfined
+    devices:
+      - /dev/fuse
