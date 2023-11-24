@@ -8,7 +8,6 @@ services:
     image: ros:melodic-perception
     ports:
       - 8888:8888
-    network_mode: host
     ipc: host
     privileged: true  
     runtime: nvidia
