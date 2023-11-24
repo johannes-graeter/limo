@@ -52,7 +52,7 @@ RUN apt update && apt install --no-install-recommends -y libceres-dev
 #     && make \
 #     && make install
 
-# WORKDIR /workspace/limo_ws
+# WORKDIR /workspace/limo
 # RUN catkin config --profile limo_release -x _limo_release --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-Wall -Wextra -Wno-unused-parameter -Werror=address -Werror=array-bounds=1 -Werror=bool-compare -Werror=comment -Werror=enum-compare -Werror=format -Werror=init-self -Werror=logical-not-parentheses -Werror=maybe-uninitialized -Werror=memset-transposed-args -Werror=nonnull -Werror=nonnull-compare -Werror=openmp-simd -Werror=parentheses -Werror=return-type -Werror=sequence-point -Werror=sizeof-pointer-memaccess -Werror=switch -Werror=tautological-compare -Werror=trigraphs -Werror=uninitialized -Werror=volatile-register-var
 
 # solve issue https://github.com/johannes-graeter/limo/issues/50
@@ -61,22 +61,31 @@ RUN ln -sf /usr/include/eigen3/Eigen /usr/include/Eigen
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
 WORKDIR /
+# Ensure the debian frontent is unset again to allow for interactive
+# installs inside the container
+ENV DEBIAN_FRONTEND=
+
+RUN useradd -u 1000 -U -m -s /bin/bash zeb
 
 
 FROM limo-base as limo-dev
 
 # Make catkin workspace
-WORKDIR /workspace/limo_ws/src
-RUN /bin/bash -c 'source /opt/ros/noetic/setup.bash && catkin_init_workspace /workspace/limo_ws/src'
+WORKDIR /workspace/limo/src
+RUN /bin/bash -c 'source /opt/ros/noetic/setup.bash && catkin_init_workspace /workspace/limo/src'
 
-WORKDIR /workspace/limo_ws/
-COPY entry.sh /entry.sh
-RUN chmod +x /entry.sh
+USER root
 
-ENTRYPOINT ["/entry.sh"]
-CMD ["catkin", "build"]
+WORKDIR /workspace/limo/
+COPY entry.sh /opt/entry.sh
+RUN chmod a+x /opt/entry.sh && chown zeb:zeb /opt/entry.sh
+
+USER zeb
+
+ENTRYPOINT ["/opt/entry.sh"]
+# CMD ["catkin", "build"]
 #
-#WORKDIR /workspace/limo_ws/src/feature_tracking/feature_tracking_core/notebook
+#WORKDIR /workspace/limo/src/feature_tracking/feature_tracking_core/notebook
 #RUN jupytext feature_tracking_notebook.py --to notebook
 #
 #COPY entry.sh /entry.sh
@@ -84,4 +93,4 @@ CMD ["catkin", "build"]
 #
 #ENTRYPOINT ["/entry.sh"]
 ## CMD ["bash"]
-#CMD /bin/bash -c 'source /opt/ros/noetic/setup.bash && source /workspace/limo_ws/devel/setup.bash && jupyter notebook --port=8888 --no-browser --ip=0.0.0.0 --allow-root /workspace/limo_ws/src/feature_tracking/feature_tracking_core/notebook/feature_tracking_notebook.ipynb'
+#CMD /bin/bash -c 'source /opt/ros/noetic/setup.bash && source /workspace/limo/devel/setup.bash && jupyter notebook --port=8888 --no-browser --ip=0.0.0.0 --allow-root /workspace/limo/src/feature_tracking/feature_tracking_core/notebook/feature_tracking_notebook.ipynb'

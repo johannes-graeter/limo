@@ -1,9 +1,7 @@
 version: "3.8"
 
 services:
-  dev:
-    build:
-      target: limo-dev
+  limo:
     # Use the same user as the host
     user: <uid>:<gid>
     volumes:

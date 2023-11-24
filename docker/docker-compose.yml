@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   limo:
-    container_name: limo
     build:
-      context: ./src
+      context: .
+      target: limo-dev
     image: limo
     ports:
       - 8888:8888
