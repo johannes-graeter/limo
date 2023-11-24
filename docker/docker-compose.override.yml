@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  dev:
+    build:
+      target: limo-dev
+    # Use the same user as the host
+    user: 1000:1000
+    volumes:
+      - /home/graeter:/home/graeter
+    # Without this the nvidia driver does not allow for creating opengl
+    # contexts inside the container.
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    # This passes the nvidia graphics card into the container.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
