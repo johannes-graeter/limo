@@ -6,11 +6,10 @@
 #include <Eigen/Eigen>
 
 #include <chrono>
-#include <cv.hpp>
 #include <image_geometry/pinhole_camera_model.h>
 #include <nav_msgs/Path.h>
-#include <tf2_eigen/tf2_eigen.h>
 #include <commons/color_by_index_hsv.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp> //attention, eigen must be icluded before that!
 
 #include <commons/general_helpers.hpp>

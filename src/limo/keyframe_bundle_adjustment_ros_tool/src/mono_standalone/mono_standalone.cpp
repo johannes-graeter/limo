@@ -3,7 +3,7 @@
 #include <Eigen/Eigen>
 
 #include <chrono>
-#include <cv.hpp>
+#include <opencv2/core/core.hpp>
 #include <image_geometry/pinhole_camera_model.h>
 #include <nav_msgs/Path.h>
 #include <tf2_eigen/tf2_eigen.h>

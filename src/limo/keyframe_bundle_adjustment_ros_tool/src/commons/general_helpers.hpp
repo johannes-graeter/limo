@@ -8,12 +8,12 @@
 
 #pragma once
 
-#include <cv.hpp>
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
 #include <matches_msg_types/tracklets.hpp>
 #include <commons/color_by_index_hsv.hpp>
-#include <yaml-cpp/yaml.h>
+#include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp> //attention, eigen must be icluded before that!
+#include <yaml-cpp/yaml.h>
 
 namespace keyframe_bundle_adjustment_ros_tool {
 

@@ -23,7 +23,7 @@ namespace util_image {
 inline cv::Scalar hsv2bgr(cv::Scalar ColorHSV) {
     cv::Mat old_color(1, 1, CV_8UC3, ColorHSV);
     cv::Mat new_color(1, 1, CV_8UC3);
-    cv::cvtColor(old_color, new_color, CV_HSV2BGR);
+    cv::cvtColor(old_color, new_color, cv::COLOR_HSV2BGR);
     return cv::Scalar(new_color.at<cv::Vec3b>(0, 0));
 }
 inline cv::Scalar get_color(uint32_t ID, int NumColors) {

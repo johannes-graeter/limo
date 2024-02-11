@@ -5,15 +5,17 @@ FROM ros:noetic-perception as limo-base
 # RUN echo "fs.inotify.max_user_watches = 524288" >> /etc/sysctl.conf && sysctl -p --system
 
 # Install some basic utilities
-RUN apt update && apt install --no-install-recommends -y \
+RUN apt-get update && apt-get install --no-install-recommends -y \
     build-essential \
     cmake \
     libopencv-dev \
     libgoogle-glog-dev \
     libatlas-base-dev \
+    libceres-dev \
     libeigen3-dev \
     libsuitesparse-dev \
     libpng++-dev \
+    libpcl-dev\
     git \
     libx11-6 \
     libgtk2.0-0 \
@@ -27,31 +29,30 @@ RUN apt update && apt install --no-install-recommends -y \
     lcov \
     tmux \
     python3-pip \
-    && apt clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /tmp/*
+    zsh \
+    && apt-get clean
+
+# RUN echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list && \
+#     apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 && \
+#     apt-get update && \
+#     apt-get install --no-install-recommends -y \
+#     ros-noetic-ros-base \
+#     ros-noetic-pcl-conversions \
+#     ros-noetic-rosbag \
+#     ros-noetic-sensor-msgs \
+#     ros-noetic-std-msgs \
+#     ros-noetic-velodyne-driver \
+#     ros-noetic-imu-complementary-filter \
+#     && apt-get clean
 
 
 RUN pip install --upgrade pip
 
-RUN pip install catkin-tools \
+RUN pip install --default-timeout=100 catkin-tools \
     pykitti \
     jupyter \
     jupytext --upgrade
     
-# Install ceres solver
-# Why is rm necessary? remove it when solved.
-# WORKDIR /opt
-# RUN rm -rf /opt/ceres-solver \
-#     && git clone https://ceres-solver.googlesource.com/ceres-solver \
-#     && mkdir -p /opt/ceres-solver/build
-RUN apt update && apt install --no-install-recommends -y libceres-dev
-
-# WORKDIR /opt/ceres-solver/build
-# RUN cmake .. -DBUILD_TESTING=OFF -DBUILD_EXAMPLES=OFF \
-#     && make \
-#     && make install
-
 # WORKDIR /workspace/limo
 # RUN catkin config --profile limo_release -x _limo_release --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS=-Wall -Wextra -Wno-unused-parameter -Werror=address -Werror=array-bounds=1 -Werror=bool-compare -Werror=comment -Werror=enum-compare -Werror=format -Werror=init-self -Werror=logical-not-parentheses -Werror=maybe-uninitialized -Werror=memset-transposed-args -Werror=nonnull -Werror=nonnull-compare -Werror=openmp-simd -Werror=parentheses -Werror=return-type -Werror=sequence-point -Werror=sizeof-pointer-memaccess -Werror=switch -Werror=tautological-compare -Werror=trigraphs -Werror=uninitialized -Werror=volatile-register-var
 
@@ -59,6 +60,7 @@ RUN apt update && apt install --no-install-recommends -y libceres-dev
 RUN cp -rf /usr/include/eigen3/Eigen /usr/include/Eigen -R
 RUN ln -sf /usr/include/eigen3/Eigen /usr/include/Eigen
 RUN ln -sf /usr/bin/python3 /usr/bin/python
+RUN ln -sf /usr/local/lib/python3.8/dist-packages/numpy/core/include/numpy /usr/include/numpy
 
 WORKDIR /
 # Ensure the debian frontent is unset again to allow for interactive
@@ -69,6 +71,8 @@ RUN useradd -u 1000 -U -m -s /bin/bash zeb
 
 
 FROM limo-base as limo-dev
+
+SHELL ["/bin/bash", "-c"]
 
 # Make catkin workspace
 WORKDIR /workspace/limo/src

@@ -37,7 +37,7 @@
   -->
   <!--
     Example:
-    <depend>mrt_opencv</depend>
+    <depend>libopencv-dev</depend>
   -->
 
   <depend>dynamic_reconfigure</depend>

@@ -12,7 +12,6 @@
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>mrt_cmake_modules</build_depend>
   <test_depend>gtest</test_depend>
-  <depend>mrt_ceres</depend>
   <export>
     <!-- Other tools can request additional information be placed here -->
   </export>

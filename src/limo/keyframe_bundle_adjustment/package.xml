@@ -27,9 +27,9 @@
                               <exec_depend>.
   -->
   <depend>eigen</depend>
-  <depend>mrt_ceres</depend>
-  <depend>mrt_pcl</depend> <!--For voxelization in landmark selection-->
-  <depend>mrt_opencv</depend>
+  <depend>libceres-dev</depend>
+  <depend>libopencv-dev</depend>
+  <depend>libpcl-all-dev</depend>
   <depend>matches_msg_types</depend>
   <depend>robust_optimization</depend>
   <depend>boost</depend>

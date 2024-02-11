@@ -20,10 +20,10 @@
   <!-- <depend>rospy</depend> Use this instead of roscpp  when writing a python node -->
   <depend>roslib</depend>
   <depend>nodelet</depend>
-  <depend>mrt_pcl</depend>
+  <depend>libpcl-all-dev</depend>
   <depend>image_transport</depend>
   <depend>rosbag</depend>
-  <depend>mrt_opencv</depend>
+  <depend>libopencv-dev</depend>
   <depend>cv_bridge</depend>
 
   <depend>util_nodes_tf2_ros_tool</depend> 
@@ -38,6 +38,7 @@
   <depend>tracklets_depth</depend>
   <depend>monolidar_fusion</depend>
   <depend>matches_msg_ros</depend>
+  <depend>matches_msg_depth_ros</depend>
   <depend>yaml-cpp</depend>
 
   <export>
