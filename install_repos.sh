@@ -5,9 +5,9 @@ catkin config --profile limo_release -x _limo_release --cmake-args -DCMAKE_BUILD
 # clone stuff
 cd ..
 mkdir src
-git clone https://github.com/KIT-MRT/feature_tracking.git
+git clone https://github.com/johannes-graeter/feature_tracking.git
 git clone https://github.com/johannes-graeter/mono_lidar_depth.git
-git clone https://github.com/KIT-MRT/viso2.git
+git clone https://github.com/johannes-graeter/viso2.git
 git clone https://github.com/KIT-MRT/mrt_cmake_modules.git
 git clone https://github.com/KIT-MRT/rosinterface_handler.git
 
