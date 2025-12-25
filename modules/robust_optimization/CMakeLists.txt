@@ -1,0 +1,3 @@
+add_library(robust_optimization src/robust_solving.cpp)
+target_include_directories(robust_optimization PUBLIC include)
+target_link_libraries(robust_optimization PUBLIC Ceres::ceres)

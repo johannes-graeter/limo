@@ -1,0 +1,3 @@
+add_library(matches_msg_types INTERFACE)
+target_include_directories(matches_msg_types INTERFACE include)
+target_link_libraries(matches_msg_types INTERFACE Eigen3::Eigen)
