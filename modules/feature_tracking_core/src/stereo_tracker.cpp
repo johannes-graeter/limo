@@ -1,4 +1,4 @@
-#include "stereo_tracker.h"
+#include "feature_tracking_core/stereo_tracker.h"
 
 namespace feature_tracking {
 ;

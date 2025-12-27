@@ -1,6 +1,8 @@
-#include "brightness_correction.h"
-#include <opencv2/imgproc/imgproc.hpp>
+#include "image_preproc/brightness_correction.h"
+
 #include <iostream>
+#include <opencv2/imgproc/imgproc.hpp>
+
 namespace image_preproc {
 
 void BrightnessCorrection::correctGamma(cv::InputArray src, cv::OutputArray dst, const double gamma) {

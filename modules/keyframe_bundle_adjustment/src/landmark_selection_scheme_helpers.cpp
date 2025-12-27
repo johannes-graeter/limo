@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_helpers.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_helpers.hpp"
 
 namespace keyframe_bundle_adjustment {
 namespace landmark_helpers {

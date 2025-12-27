@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "keyframe_selector.hpp"
+#include "keyframe_bundle_adjustment/keyframe_selector.hpp"
 #include <chrono>
 
 namespace keyframe_bundle_adjustment {

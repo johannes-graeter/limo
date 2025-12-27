@@ -2,7 +2,6 @@
 // Created by graeter on 06/07/16.
 //
 #pragma once
-#include <cv.hpp>
 #include <iostream>
 #include <Eigen/Eigen>
 #include <ceres/problem.h>

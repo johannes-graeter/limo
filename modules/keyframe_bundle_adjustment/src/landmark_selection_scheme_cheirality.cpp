@@ -6,8 +6,9 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_cheirality.hpp"
 #include <chrono>
+
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_cheirality.hpp"
 
 namespace keyframe_bundle_adjustment {
 

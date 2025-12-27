@@ -141,10 +141,10 @@ public:
     /// incremented by one.
     Tracklet();
 
-    u_int64_t id_; ///< track ID for feature identification
+    uint64_t id_; ///< track ID for feature identification
     int age_;      ///< age of tracklet in frames
 private:
-    static u_int64_t nextId; ///< stores the next ID to be given to the next tacklet.
+    static uint64_t nextId; ///< stores the next ID to be given to the next tacklet.
 };
 
 ///////////////////////////////////
@@ -161,10 +161,10 @@ public:
     /// incremented by one.
     StereoTracklet();
 
-    u_int64_t id_; ///< track ID for feature identification
+    uint64_t id_; ///< track ID for feature identification
     int age_;      ///< age of tracklet in frames
 private:
-    static u_int64_t nextId; ///< stores the next ID to be given to the next tacklet.
+    static uint64_t nextId; ///< stores the next ID to be given to the next tacklet.
 };
 
 ///////////////////////////////////

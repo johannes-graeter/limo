@@ -6,15 +6,16 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_observability.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_observability.hpp"
 
-#include "internal/landmark_selection_scheme_helpers.hpp"
+#include <chrono>
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/density.hpp>
 #include <boost/accumulators/statistics/stats.hpp>
 
-#include <chrono>
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_helpers.hpp"
+
 
 namespace keyframe_bundle_adjustment {
 

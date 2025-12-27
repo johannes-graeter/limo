@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_random.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_random.hpp"
 
 namespace keyframe_bundle_adjustment {
 

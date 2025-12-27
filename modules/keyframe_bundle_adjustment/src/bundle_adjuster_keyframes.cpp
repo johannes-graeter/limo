@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "bundle_adjuster_keyframes.hpp"
+#include "keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp"
 
 #include <chrono>
 #include <exception>
@@ -14,15 +14,14 @@
 #include <random>
 #include <sstream>
 #include <ceres/ceres.h>
-#include "internal/cost_functors_ceres.hpp"
-#include "internal/definitions.hpp"
-#include "internal/local_parameterizations.hpp"
-#include "internal/motion_model_regularization.hpp"
-
-#include "landmark_selection_schemes.hpp"
 
 #include <robust_optimization/robust_solving.hpp>
 
+#include "keyframe_bundle_adjustment/internal/cost_functors_ceres.hpp"
+#include "keyframe_bundle_adjustment/internal/definitions.hpp"
+#include "keyframe_bundle_adjustment/internal/local_parameterizations.hpp"
+#include "keyframe_bundle_adjustment/internal/motion_model_regularization.hpp"
+#include "keyframe_bundle_adjustment/landmark_selection_schemes.hpp"
 
 namespace keyframe_bundle_adjustment {
 

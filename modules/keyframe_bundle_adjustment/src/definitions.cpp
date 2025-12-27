@@ -1,4 +1,5 @@
-#include <internal/definitions.hpp>
+#include "keyframe_bundle_adjustment/internal/definitions.hpp"
+
 namespace keyframe_bundle_adjustment {
 
 Landmark::Landmark() {

@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/keyframe_selection_scheme_pose.hpp"
+#include "keyframe_bundle_adjustment/internal/keyframe_selection_scheme_pose.hpp"
 
 namespace keyframe_bundle_adjustment {
 

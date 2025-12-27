@@ -6,9 +6,11 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
+#include "robust_optimization/robust_solving.hpp"
+
 #include <Eigen/Dense>
-#include <robust_solving.hpp>
-#include <internal/apply_trimmer.hpp>
+
+#include "robust_optimization/internal/apply_trimmer.hpp"
 
 namespace robust_optimization {
 namespace {

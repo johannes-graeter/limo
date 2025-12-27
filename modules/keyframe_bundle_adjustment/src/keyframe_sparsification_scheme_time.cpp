@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/keyframe_sparsification_scheme_time.hpp"
+#include "keyframe_bundle_adjustment/internal/keyframe_sparsification_scheme_time.hpp"
 
 namespace keyframe_bundle_adjustment {
 

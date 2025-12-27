@@ -6,9 +6,10 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_add_depth.hpp"
 #include <algorithm>
-#include "internal/landmark_selection_scheme_helpers.hpp"
+
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_add_depth.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_helpers.hpp"
 
 namespace keyframe_bundle_adjustment {
 

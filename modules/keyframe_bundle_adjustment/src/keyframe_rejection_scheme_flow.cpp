@@ -6,7 +6,7 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/keyframe_rejection_scheme_flow.hpp"
+#include "keyframe_bundle_adjustment/internal/keyframe_rejection_scheme_flow.hpp"
 
 namespace keyframe_bundle_adjustment {
 KeyframeRejectionSchemeFlow::KeyframeRejectionSchemeFlow(double min_median_flow)

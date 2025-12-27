@@ -6,7 +6,9 @@
 //  Johannes Graeter (johannes.graeter@kit.edu)
 //  and others
 
-#include "internal/landmark_selection_scheme_voxel.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_voxel.hpp"
+
+#include <memory>
 
 #include <pcl/point_types.h>
 #include <pcl/filters/passthrough.h>
@@ -19,7 +21,7 @@
 #include <boost/geometry/geometries/register/point.hpp>
 
 #include <chrono>
-#include "internal/landmark_selection_scheme_helpers.hpp"
+#include "keyframe_bundle_adjustment/internal/landmark_selection_scheme_helpers.hpp"
 
 // TypeDefs
 using Point = pcl::PointXYZL;
@@ -52,8 +54,8 @@ void filterXYZ(const Cloud::Ptr& cloudInput,
                std::set<int>& removed_labels) {
 
     // Indices needed for filtering.
-    auto indices_x = boost::make_shared<std::vector<int>>();
-    auto indices_xy = boost::make_shared<std::vector<int>>();
+    auto indices_x = std::make_shared<std::vector<int>>();
+    auto indices_xy = std::make_shared<std::vector<int>>();
 
     // Filter roi by x,y,z to apply voxelization (otherwise leaf size will be bad)
     pcl::PassThrough<Point> pass(true);

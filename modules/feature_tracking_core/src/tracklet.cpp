@@ -1,8 +1,10 @@
-#include "tracklet.h"
+#include "feature_tracking_core/tracklet.h"
+
+#include <cmath>
 
 namespace feature_tracking {
-u_int64_t Tracklet::nextId = 0;
-u_int64_t StereoTracklet::nextId = 0;
+uint64_t Tracklet::nextId = 0;
+uint64_t StereoTracklet::nextId = 0;
 
 
 ImagePoint::ImagePoint(float u, float v, int index) : u_(u), v_(v), index_(index) {
