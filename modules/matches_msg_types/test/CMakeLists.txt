@@ -1,0 +1,3 @@
+add_executable(test_matches_msg_types test_matches_msg_types.cpp)
+target_link_libraries(test_matches_msg_types gtest gtest_main pthread)
+add_test(NAME test_matches_msg_types COMMAND test_matches_msg_types)

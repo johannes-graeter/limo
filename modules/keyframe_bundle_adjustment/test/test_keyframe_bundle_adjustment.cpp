@@ -35,18 +35,20 @@
 //}
 //=======================================================================================================================================================
 //#include "bundler.hpp"
-#include "bundle_adjuster_keyframes.hpp"
-#include "gtest/gtest.h"
-#include "internal/cost_functors_ceres.hpp"
-#include "internal/local_parameterizations.hpp"
-#include "internal/motion_model_regularization.hpp"
-#include "internal/triangulator.hpp"
+#include "keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp"
 
 #include <fstream>
-#include <keyframe_selection_schemes.hpp>
-#include <keyframe_selector.hpp>
 #include <random>
 #include <Eigen/Eigen>
+#include <gtest/gtest.h>
+
+#include "keyframe_bundle_adjustment/internal/cost_functors_ceres.hpp"
+#include "keyframe_bundle_adjustment/internal/local_parameterizations.hpp"
+#include "keyframe_bundle_adjustment/internal/motion_model_regularization.hpp"
+#include "keyframe_bundle_adjustment/internal/triangulator.hpp"
+#include "keyframe_bundle_adjustment/keyframe_selection_schemes.hpp"
+#include "keyframe_bundle_adjustment/keyframe_selector.hpp"
+
 
 TEST(Triangulator, process) {
     Eigen::Matrix<double, 3, 1> p;

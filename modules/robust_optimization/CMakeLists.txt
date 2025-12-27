@@ -9,3 +9,9 @@ find_package(Ceres REQUIRED)
 add_library(robust_optimization src/robust_solving.cpp)
 target_include_directories(robust_optimization PUBLIC include)
 target_link_libraries(robust_optimization PUBLIC Ceres::ceres)
+
+# Enable tests if in top-level project
+if (PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  enable_testing()
+  add_subdirectory(test)
+endif()

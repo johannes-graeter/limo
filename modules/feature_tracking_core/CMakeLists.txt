@@ -12,3 +12,9 @@ file(GLOB FEATURE_TRACKING_SOURCES src/*.cpp)
 add_library(feature_tracking_core ${FEATURE_TRACKING_SOURCES})
 target_include_directories(feature_tracking_core PUBLIC include)
 target_link_libraries(feature_tracking_core PUBLIC viso2 ${OpenCV_LIBS} Boost::boost Eigen3::Eigen)
+
+# Enable tests if in top-level project
+if (PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  enable_testing()
+  add_subdirectory(test)
+endif()

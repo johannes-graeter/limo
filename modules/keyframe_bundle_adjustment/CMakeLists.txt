@@ -23,3 +23,5 @@ target_link_libraries(keyframe_bundle_adjustment PUBLIC
     ${OpenCV_LIBS}
     Boost::boost
 )
+
+add_subdirectory(test)

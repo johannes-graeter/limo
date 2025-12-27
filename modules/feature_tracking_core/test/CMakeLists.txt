@@ -1,0 +1,3 @@
+add_executable(test_feature_tracking test_feature_tracking.cpp)
+target_link_libraries(test_feature_tracking gtest gtest_main pthread)
+add_test(NAME test_feature_tracking COMMAND test_feature_tracking)

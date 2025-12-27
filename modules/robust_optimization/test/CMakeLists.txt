@@ -1,0 +1,3 @@
+add_executable(test_robust_optimization test_robust_optimization.cpp)
+target_link_libraries(test_robust_optimization gtest gtest_main pthread)
+add_test(NAME test_robust_optimization COMMAND test_robust_optimization)
