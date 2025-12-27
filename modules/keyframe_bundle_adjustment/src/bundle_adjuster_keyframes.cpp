@@ -159,37 +159,23 @@ std::vector<BundleAdjusterKeyframes::PoseAndRay> BundleAdjusterKeyframes::getMea
 
 void BundleAdjusterKeyframes::setParameterization(Keyframe& kf,
                                                   BundleAdjusterKeyframes::MotionParameterizationType type) {
-    if (problem_->HasParameterBlock(kf.pose_.data()) && problem_->GetParameterization(kf.pose_.data()) == NULL) {
-        // add local parametrization to implement motion model if it pose was added as variable
-        // and
-        // parameterization was not set.
-        // -> less parameters while being able to use convenient x,y,z representation
-
-        // full 6 dofs
-        ceres::LocalParameterization* motion_parameterization;
-        // if keyframe is fixed no contraint is added -> return
-        if (type == MotionParameterizationType::FixRotation) {
-            motion_parameterization = new ceres::ProductParameterization(
-                new ceres::SubsetParameterization(4, {0, 1, 2, 3}), new ceres::IdentityParameterization(3));
-        } else if (type == MotionParameterizationType::Bycicle) {
-            //            const auto& last_kf = getKeyframe();
-            //            motion_parameterization =
-            //            local_parameterizations::CircularMotionPlus2d::Create(last_kf.getEigenPose());
-            motion_parameterization = local_parameterizations::CircularMotionPlus2d::Create();
+    if (problem_->HasParameterBlock(kf.pose_.data())) {
+        // Only set manifold if parameter block exists
+        ceres::Manifold* pose_manifold = nullptr;
+        if (type == MotionParameterizationType::Bycicle) {
+            pose_manifold = local_parameterizations::CircularMotionPlus2d::Create();
         } else {
-            motion_parameterization = new ceres::ProductParameterization(new ceres::QuaternionParameterization(),
-                                                                         new ceres::IdentityParameterization(3));
+            // Default: treat as 6DOF (quaternion + translation)
+            pose_manifold = new ceres::ProductManifold(
+                new ceres::SphereManifold<4>(), new ceres::EuclideanManifold<3>());
         }
+        problem_->SetManifold(kf.pose_.data(), pose_manifold);
 
-        problem_->SetParameterization(kf.pose_.data(), motion_parameterization);
-
-        if (problem_->HasParameterBlock(kf.local_ground_plane_.direction.data()) &&
-            problem_->GetParameterization(kf.local_ground_plane_.direction.data()) == NULL) {
-            // Plane parameterization.
-            ceres::LocalParameterization* plane_parameterization =
-                new ceres::AutoDiffLocalParameterization<local_parameterizations::FixScaleVectorPlus, 3, 3>(
+        if (problem_->HasParameterBlock(kf.local_ground_plane_.direction.data())) {
+            ceres::Manifold* plane_manifold =
+                new ceres::AutoDiffManifold<local_parameterizations::FixScaleVectorPlus, 3, 3>(
                     new local_parameterizations::FixScaleVectorPlus(1.0));
-            problem_->SetParameterization(kf.local_ground_plane_.direction.data(), plane_parameterization);
+            problem_->SetManifold(kf.local_ground_plane_.direction.data(), plane_manifold);
         }
     }
 }

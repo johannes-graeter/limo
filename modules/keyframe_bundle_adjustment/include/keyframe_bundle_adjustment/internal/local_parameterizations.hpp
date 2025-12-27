@@ -9,8 +9,7 @@
 #pragma once
 #include <array>
 #include <Eigen/Eigen>
-#include <ceres/autodiff_local_parameterization.h>
-#include <ceres/local_parameterization.h>
+#include <ceres/autodiff_manifold.h>
 #include <ceres/rotation.h>
 
 #include "definitions.hpp"
@@ -133,6 +132,16 @@ struct FullDofsPlus {
  * should lie in last pose->optimise motion not pose?
  */
 struct FixScaleVectorPlus {
+        template <typename T>
+        bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
+            return (*this)(x, delta, x_plus_delta);
+        }
+
+        template <typename T>
+        bool Minus(const T* y, const T* x, T* y_minus_x) const {
+            // Not implemented: provide a suitable implementation if needed
+            return false;
+        }
     FixScaleVectorPlus(double scale = 1.) : scale_(scale) {
         ;
     }
@@ -221,12 +230,33 @@ struct CircularMotionPlus2d {
         return true;
     }
 
-    static ceres::LocalParameterization* Create() {
-        return new ceres::AutoDiffLocalParameterization<CircularMotionPlus2d, 7, 2>(new CircularMotionPlus2d());
+    static ceres::Manifold* Create() {
+        return new ceres::AutoDiffManifold<CircularMotionPlus2d, 7, 2>(new CircularMotionPlus2d());
+    }
+
+    template <typename T>
+    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
+        return (*this)(x, delta, x_plus_delta);
+    }
+
+    template <typename T>
+    bool Minus(const T* y, const T* x, T* y_minus_x) const {
+        // Not implemented: provide a suitable implementation if needed
+        return false;
     }
 };
 
 struct FixScaleCircularMotionPlus {
+        template <typename T>
+        bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
+            return (*this)(x, delta, x_plus_delta);
+        }
+
+        template <typename T>
+        bool Minus(const T* y, const T* x, T* y_minus_x) const {
+            // Not implemented: provide a suitable implementation if needed
+            return false;
+        }
     FixScaleCircularMotionPlus(double fix_value = 1.) : fix_value_(fix_value) {
         ;
     }
