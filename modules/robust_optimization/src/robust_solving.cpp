@@ -139,6 +139,29 @@ void removeUnconstraintParameters(ceres::Problem& problem) {
 }
 }
 
+Options getStandardSolverOptions(double solver_time_sec) {
+    Options options;
+    // how to choose solver http://ceres-solver.org/solving_faqs.html
+    options.linear_solver_type = ceres::DENSE_SCHUR;
+    //    solverOptions_.num_threads = ceres::CERES_NUM_THREADS_DEFAULT;
+    options.num_threads = 3;
+    //    solverOptions_.num_linear_solver_threads = CERES_NUM_THREADS_DEFAULT;
+    options.max_num_iterations = 100;
+    // options.parameter_tolerance = 1.e-10;
+    // options.function_tolerance = 1.e-10;
+    // options.gradient_tolerance = 1.e-10;
+    options.max_solver_time_in_seconds = solver_time_sec;
+    options.minimizer_progress_to_stdout = true;
+    //    options.update_state_every_iteration = true; // needed for callbacks
+    return options;
+}
+
+Options getSolverOptionsNumIter(int num_iterations) {
+    Options options = getStandardSolverOptions(100.);
+    options.max_num_iterations = num_iterations;
+    return options;
+}
+
 Summary solveTrimmed(const std::vector<int>& number_iterations,
                      std::vector<std::pair<ResidualIdMap, TrimmerSpecification>>& ids_trimmer_specs,
                      ceres::Problem& problem,
@@ -247,5 +270,23 @@ Summary solveTrimmed(const std::vector<int>& number_iterations,
                                1e-3;
 
     return trimmer_summary;
+}
+
+Summary solveTrimmed(const std::vector<int>& number_iterations,
+                     const ResidualIds& ids,
+                     const TrimmerSpecification& trimmer_specs,
+                     ceres::Problem& problem,
+                     Options options) {
+    // If any residual shall be treated individually, we give each residual id an independant group id.
+    ResidualIdMap group_ids;
+    unsigned int i = 0;
+    for (const auto& el : ids) {
+        group_ids[el.first] = std::make_pair(i, el.second);
+        i++;
+    }
+
+    std::vector<std::pair<ResidualIdMap, TrimmerSpecification>> ids_map{std::make_pair(group_ids, trimmer_specs)};
+    return solveTrimmed(number_iterations, ids_map, problem, options);
+
 }
 }

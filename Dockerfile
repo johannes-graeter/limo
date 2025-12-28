@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     git \
     libeigen3-dev \
+    libgtest-dev \
     libopencv-dev \
     libboost-all-dev \
     libpng-dev \

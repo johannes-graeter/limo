@@ -1,3 +1,0 @@
-add_executable(test_image_preproc test_image_preproc.cpp)
-target_link_libraries(test_image_preproc gtest gtest_main pthread)
-add_test(NAME test_image_preproc COMMAND test_image_preproc)

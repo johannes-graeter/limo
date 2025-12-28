@@ -163,7 +163,7 @@ void BundleAdjusterKeyframes::setParameterization(Keyframe& kf,
         // Only set manifold if parameter block exists
         ceres::Manifold* pose_manifold = nullptr;
         if (type == MotionParameterizationType::Bycicle) {
-            pose_manifold = local_parameterizations::CircularMotionPlus2d::Create();
+            pose_manifold = local_parameterizations::CircularMotion2d::Create();
         } else {
             // Default: treat as 6DOF (quaternion + translation)
             pose_manifold = new ceres::ProductManifold(
@@ -173,8 +173,8 @@ void BundleAdjusterKeyframes::setParameterization(Keyframe& kf,
 
         if (problem_->HasParameterBlock(kf.local_ground_plane_.direction.data())) {
             ceres::Manifold* plane_manifold =
-                new ceres::AutoDiffManifold<local_parameterizations::FixScaleVectorPlus, 3, 3>(
-                    new local_parameterizations::FixScaleVectorPlus(1.0));
+                new ceres::AutoDiffManifold<local_parameterizations::FixScaleVector, 3, 3>(
+                    new local_parameterizations::FixScaleVector(1.0));
             problem_->SetManifold(kf.local_ground_plane_.direction.data(), plane_manifold);
         }
     }

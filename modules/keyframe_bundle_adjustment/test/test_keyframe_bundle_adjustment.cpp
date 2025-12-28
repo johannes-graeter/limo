@@ -1396,7 +1396,7 @@ TEST(CostFunctor, TranslationDifferenceRegularization) {
 }
 
 TEST(LocalParameterization, CircularMotion2d) {
-    local_parameterizations::CircularMotionPlus2d plus_op{};
+    local_parameterizations::CircularMotion2d manifold{};
 
     std::array<double, 7> pose0{{1., 0., 0., 0., -3.5, -3., -3.}};
 
@@ -1406,7 +1406,7 @@ TEST(LocalParameterization, CircularMotion2d) {
 
         std::array<double, 7> pose1;
         std::array<double, 2> delta{{yaw, arc}};
-        plus_op(pose0.data(), delta.data(), pose1.data());
+        manifold.Plus(pose0.data(), delta.data(), pose1.data());
 
         ASSERT_NEAR(pose1[4], -4.5, 1e-10);
     }
@@ -1416,12 +1416,29 @@ TEST(LocalParameterization, CircularMotion2d) {
 
         std::array<double, 7> pose1;
         std::array<double, 2> delta{{yaw, arc}};
-        plus_op(pose0.data(), delta.data(), pose1.data());
+        manifold.Plus(pose0.data(), delta.data(), pose1.data());
 
         ASSERT_NEAR(pose1[4], -4.345, 1e-3);
         ASSERT_NEAR(pose1[5], -3.196, 1e-3);
         ASSERT_NEAR(pose1[6], pose0[6], 1e-3);
     }
+}
 
-    //    pose0 = std:
+TEST(LocalParameterizationFixScaleVectorManifold, PlusPreservesNorm) {
+    local_parameterizations::FixScaleVector manifold(2.0);
+    double x[3] = {1.0, 0.0, 0.0};
+    double delta[3] = {1.0, 1.0, 0.0};
+    double x_plus_delta[3];
+    manifold.Plus(x, delta, x_plus_delta);
+    double norm = std::sqrt(x_plus_delta[0]*x_plus_delta[0] + x_plus_delta[1]*x_plus_delta[1] + x_plus_delta[2]*x_plus_delta[2]);
+    EXPECT_NEAR(norm, 2.0, 1e-9);
+}
+
+TEST(LocalParameterizationCircularMotion2dManifold, PlusOutputSize) {
+    local_parameterizations::CircularMotion2d manifold;
+    double x[7] = {1,0,0,0,0,0,0};
+    double delta[2] = {0.1, 1.0};
+    double x_plus_delta[7];
+    bool ok = manifold.Plus(x, delta, x_plus_delta);
+    EXPECT_TRUE(ok);
 }

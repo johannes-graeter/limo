@@ -39,13 +39,13 @@ void EulerAnglesToQuaternion(const T* euler_angles, T* quaternion) {
 /**
  * @brief plus operator for local parameterization for 6 degrees of freedom
  *
- * this is for testing purposes for applicatino use ceres built-ins:
+ * this is for testing purposes for application use ceres built-ins:
  * ceres::LocalParameterization* motion_parameterization = new ceres::ProductParameterization(
  * new ceres::QuaternionParameterization(), new ceres::IdentityParameterization(3));
  */
-struct FullDofsPlus {
+struct FullDofs {
     template <typename T>
-    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
         // x is input state, delta is how varibales propagate to state, x_plus_delta is the
         // result
         // delta: angle1,angle2,angle3 (i guess angleaxis), x,y,z
@@ -88,61 +88,25 @@ struct FullDofsPlus {
 
         return true;
     }
+    
+    template <typename T>
+    bool Minus(const T* y, const T* x, T* y_minus_x) const {
+        // Not implemented: provide a suitable implementation if needed
+        return false;
+    }
 };
 
 
-///**
-// * NOT WORKING YET: x_plus_delta must lie on sphere, not the delta
-// * @brief The FixScaleVectorPlus struct, vector with fix norm, can be used for first pose
-// */
-// struct FixScaleVectorPlus {
-//    FixScaleVectorPlus(double scale = 1.) : scale_(scale) {
-//        ;
-//    }
-//    /**
-//     * @brief functor operator
-//     * @param x: 3 dims, x,y,z
-//     * @param delta: 2 dims, two angles of a sphere
-//     * @param x_plus_delta: 3 dims result of plus
-//     */
-//    template <typename T>
-//    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
-//        // use sphere coordinates:
-//        // https://en.wikipedia.org/wiki/Spherical_coordinate_system
-
-//        T r(scale_);
-
-//        T sin_theta = ceres::sin(delta[0]);
-//        x_plus_delta[0] = x[0] + r * sin_theta * ceres::cos(delta[1]);
-//        x_plus_delta[1] = x[1] + r * sin_theta * ceres::sin(delta[1]);
-//        x_plus_delta[2] = x[2] + r * ceres::cos(delta[0]);
-
-//        return true;
-//    }
-
-//    double scale_; ///< scale of the vector
-//};
-
 /**
- * @brief The FixScaleVectorPlus struct, vector with fix norm, can be used for first pose
+ * @brief The FixScaleVector struct, vector with fix norm, can be used for first pose
  * seems strange but should work according to
  * https://groups.google.com/forum/#!topic/ceres-solver/pFJDfAWR3dY
  *
  * For global cos that could be a problem if the reference pose is not at zero, middle of shpere
  * should lie in last pose->optimise motion not pose?
  */
-struct FixScaleVectorPlus {
-        template <typename T>
-        bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
-            return (*this)(x, delta, x_plus_delta);
-        }
-
-        template <typename T>
-        bool Minus(const T* y, const T* x, T* y_minus_x) const {
-            // Not implemented: provide a suitable implementation if needed
-            return false;
-        }
-    FixScaleVectorPlus(double scale = 1.) : scale_(scale) {
+struct FixScaleVector {
+    FixScaleVector(double scale = 1.) : scale_(scale) {
         ;
     }
     /**
@@ -152,7 +116,7 @@ struct FixScaleVectorPlus {
      * @param x_plus_delta: 3 dims result of plus
      */
     template <typename T>
-    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
         // use sphere coordinates:
 
         x_plus_delta[0] = x[0] + delta[0];
@@ -170,15 +134,21 @@ struct FixScaleVectorPlus {
         return true;
     }
 
+    template <typename T>
+    bool Minus(const T* y, const T* x, T* y_minus_x) const {
+        // Not implemented: provide a suitable implementation if needed
+        return false;
+    }
+
     double scale_; ///< scale of the vector
 };
 
 /**
  * @brief plus operator for local parametrization
  */
-struct CircularMotionPlus2d {
+struct CircularMotion2d {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CircularMotionPlus2d() = default;
+    CircularMotion2d() = default;
     /**
     * @brief plus functor, x is input state, delta is how varibales propagate to state, x_plus_delta
     * is the result
@@ -186,7 +156,7 @@ struct CircularMotionPlus2d {
      * @param x: quaternion[0:4], x, y, z
      */
     template <typename T>
-    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
         using Transf = Eigen::Transform<T, 3, Eigen::Isometry>;
 
         // Add delta as yaw and arc length
@@ -231,12 +201,7 @@ struct CircularMotionPlus2d {
     }
 
     static ceres::Manifold* Create() {
-        return new ceres::AutoDiffManifold<CircularMotionPlus2d, 7, 2>(new CircularMotionPlus2d());
-    }
-
-    template <typename T>
-    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
-        return (*this)(x, delta, x_plus_delta);
+        return new ceres::AutoDiffManifold<CircularMotion2d, 7, 2>(new CircularMotion2d());
     }
 
     template <typename T>
@@ -246,23 +211,13 @@ struct CircularMotionPlus2d {
     }
 };
 
-struct FixScaleCircularMotionPlus {
-        template <typename T>
-        bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
-            return (*this)(x, delta, x_plus_delta);
-        }
-
-        template <typename T>
-        bool Minus(const T* y, const T* x, T* y_minus_x) const {
-            // Not implemented: provide a suitable implementation if needed
-            return false;
-        }
-    FixScaleCircularMotionPlus(double fix_value = 1.) : fix_value_(fix_value) {
+struct FixScaleCircularMotion {
+    FixScaleCircularMotion(double fix_value = 1.) : fix_value_(fix_value) {
         ;
     }
 
     template <typename T>
-    bool operator()(const T* x, const T* delta, T* x_plus_delta) const {
+    bool Plus(const T* x, const T* delta, T* x_plus_delta) const {
         // x is input state, delta is how varibales propagate to state, x_plus_delta is the
         // result
         // delta: pitch, yaw, roll (angles around x,y,z axes)
@@ -296,6 +251,12 @@ struct FixScaleCircularMotionPlus {
         x_plus_delta[6] = x[6] + dx;
 
         return true;
+    }
+
+    template <typename T>
+    bool Minus(const T* y, const T* x, T* y_minus_x) const {
+        // Not implemented: provide a suitable implementation if needed
+        return false;
     }
 
     double fix_value_;

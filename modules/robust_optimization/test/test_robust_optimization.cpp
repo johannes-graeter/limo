@@ -35,10 +35,11 @@
 //}
 //=======================================================================================================================================================
 #include <random>
-#include <robust_solving.hpp>
 #include <ceres/ceres.h>
-#include <internal/apply_trimmer.hpp>
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
+#include "robust_optimization/robust_solving.hpp"
+#include "robust_optimization/internal/apply_trimmer.hpp"
 
 using IdResMap = std::map<int, double>;
 

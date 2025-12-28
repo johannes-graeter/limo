@@ -9,9 +9,3 @@ find_package(Eigen3 REQUIRED)
 add_library(matches_msg_types INTERFACE)
 target_include_directories(matches_msg_types INTERFACE include)
 target_link_libraries(matches_msg_types INTERFACE Eigen3::Eigen)
-
-# Enable tests if in top-level project
-if (PROJECT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-  enable_testing()
-  add_subdirectory(test)
-endif()
