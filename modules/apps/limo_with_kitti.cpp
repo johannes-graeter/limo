@@ -2,6 +2,7 @@
 #include <feature_tracking_core/tracker.h>
 #include <keyframe_bundle_adjustment/bundle_adjuster_keyframes.hpp>
 #include "kitti_data_reader.h"
+#include "rerun_vis.h"
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -11,10 +12,13 @@ int main(int argc, char** argv) {
     std::string kitti_path = argv[1];
     KittiDataReader reader(kitti_path);
     size_t count = 0;
+    rerun::init();
     for (auto gen = reader.frames(); gen.next(); ) {
         const KittiFrame& frame = gen.value();
         std::cout << "Frame " << frame.index << ": Image size = " << frame.image.cols << "x" << frame.image.rows
                   << ", PointCloud size = " << frame.cloud->size() << std::endl;
+        rr_vis::log_image("KITTI Image", frame.image);
+        rr_vis::log_pointcloud("KITTI PointCloud", frame.cloud);
         // Example: show image (uncomment to enable)
         // cv::imshow("KITTI Image", frame.image);
         // if (cv::waitKey(1) == 27) break;

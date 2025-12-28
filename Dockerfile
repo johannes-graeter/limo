@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libceres-dev \
     libpcl-dev \
+    libxcb1-dev libxkbcommon-dev \ # For rerun
     && rm -rf /var/lib/apt/lists/*
 
 # Set up working directory
