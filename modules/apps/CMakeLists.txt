@@ -9,11 +9,11 @@ find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
 
 add_library(rerun_vis rerun_vis.h rerun_vis.cpp)
+target_include_directories(rerun_vis PUBLIC ${rerun_sdk_SOURCE_DIR}/include)
 target_link_libraries(rerun_vis
     PUBLIC
     ${OpenCV_LIBS}
     ${PCL_LIBRARIES}
-    PRIVATE
     rerun_sdk
 )
 
