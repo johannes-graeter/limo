@@ -1,0 +1,6 @@
+add_library(synthetic_kitti synthetic_kitti.h synthetic_kitti.cpp)
+target_link_libraries(synthetic_kitti PUBLIC ${OpenCV_LIBS} Eigen3::Eigen)
+
+add_executable(test_kitti_data_reader test_kitti_data_reader.cpp)
+target_link_libraries(test_kitti_data_reader kitti_data_reader synthetic_kitti gtest gtest_main pthread)
+add_test(NAME test_kitti_data_reader COMMAND test_kitti_data_reader)

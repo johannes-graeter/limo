@@ -52,8 +52,11 @@ public:
                    const std::vector<std::array<uint8_t, 4>>& colors_rgba = {},
                    float radius = 0.15f) const;
 
-    /// Log a lidar point cloud, colored by intensity.
-    void logPointCloud(std::string_view entity, const pcl::PointCloud<pcl::PointXYZI>& cloud) const;
+    /// Log a lidar point cloud, colored by intensity. If a transform is given, the points are
+    /// mapped through it first (e.g. velodyne -> camera to log under the camera entity).
+    void logPointCloud(std::string_view entity,
+                       const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                       const Eigen::Affine3d& transform = Eigen::Affine3d::Identity()) const;
 
 private:
     std::optional<rerun::RecordingStream> stream_;

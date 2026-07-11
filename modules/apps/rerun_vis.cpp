@@ -147,7 +147,8 @@ void RerunVisualizer::logPoints(std::string_view entity,
 }
 
 void RerunVisualizer::logPointCloud(std::string_view entity,
-                                    const pcl::PointCloud<pcl::PointXYZI>& cloud) const {
+                                    const pcl::PointCloud<pcl::PointXYZI>& cloud,
+                                    const Eigen::Affine3d& transform) const {
     if (!stream_ || cloud.empty()) {
         return;
     }
@@ -156,7 +157,8 @@ void RerunVisualizer::logPointCloud(std::string_view entity,
     positions.reserve(cloud.size());
     colors.reserve(cloud.size());
     for (const auto& pt : cloud.points) {
-        positions.emplace_back(pt.x, pt.y, pt.z);
+        const Eigen::Vector3d p = transform * Eigen::Vector3d(pt.x, pt.y, pt.z);
+        positions.emplace_back(static_cast<float>(p.x()), static_cast<float>(p.y()), static_cast<float>(p.z()));
         // KITTI intensities are in [0, 1]; map to a gray ramp with a visible floor.
         const auto gray = static_cast<uint8_t>(55.f + 200.f * std::clamp(pt.intensity, 0.f, 1.f));
         colors.emplace_back(gray, gray, gray);
