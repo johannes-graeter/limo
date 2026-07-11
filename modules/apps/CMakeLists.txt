@@ -1,9 +1,6 @@
 cmake_minimum_required(VERSION 3.28.3)
 project(limo_apps VERSION 1.0.0 LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/rerun.cmake)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)

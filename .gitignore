@@ -38,3 +38,6 @@
 build/
 
 # End of https://www.toptal.com/developers/gitignore/api/c++
+kitti_data/
+out/
+*.rrd

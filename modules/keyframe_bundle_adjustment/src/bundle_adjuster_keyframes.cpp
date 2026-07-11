@@ -50,8 +50,6 @@ ceres::Solver::Options getSolverOptions(double solver_time_sec) {
     ceres::Solver::Options options;
     // how to choose solver http://ceres-solver.org/solving_faqs.html
     options.linear_solver_type = ceres::DENSE_SCHUR;
-    //    solverOptions_.num_threads = ceres::CERES_NUM_THREADS_DEFAULT;
-    //    solverOptions_.num_linear_solver_threads = CERES_NUM_THREADS_DEFAULT;
     options.max_num_iterations = 100;
     // options.parameter_tolerance = 1.e-10;
     // options.function_tolerance = 1.e-10;

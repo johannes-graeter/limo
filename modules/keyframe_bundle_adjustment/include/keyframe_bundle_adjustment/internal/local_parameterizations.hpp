@@ -37,11 +37,11 @@ void EulerAnglesToQuaternion(const T* euler_angles, T* quaternion) {
 
 
 /**
- * @brief plus operator for local parameterization for 6 degrees of freedom
+ * @brief plus operator for a 6-dof pose manifold
  *
- * this is for testing purposes for application use ceres built-ins:
- * ceres::LocalParameterization* motion_parameterization = new ceres::ProductParameterization(
- * new ceres::QuaternionParameterization(), new ceres::IdentityParameterization(3));
+ * this is for testing purposes; for application use ceres built-ins:
+ * ceres::Manifold* motion_manifold = new ceres::ProductManifold(
+ * new ceres::QuaternionManifold(), new ceres::EuclideanManifold<3>());
  */
 struct FullDofs {
     template <typename T>
