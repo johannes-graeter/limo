@@ -1,30 +1,62 @@
 #pragma once
-#include <opencv2/opencv.hpp>
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include <Eigen/Geometry>
+#include <opencv2/core.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
-#include <string>
 #include <rerun.hpp>
-
-
-#include <Eigen/Dense>
 
 namespace rr_vis {
 
+/// Visualization sink for the LIMO pipeline, backed by rerun.
+///
+/// Sink mode is chosen at construction:
+///   "spawn"          spawn a local rerun viewer and stream to it
+///   "connect"        connect to a viewer at the default gRPC url
+///   "connect:<url>"  connect to a viewer at <url>
+///   "save:<path>"    write a .rrd recording to <path>
+///   "off"            all log calls become no-ops
+class RerunVisualizer {
+public:
+    RerunVisualizer(const std::string& app_id, const std::string& mode);
 
-    class RerunVisualizer{
-        public:
-        RerunVisualizer(const std::string& name);
+    bool enabled() const {
+        return stream_.has_value();
+    }
 
-        // Log an image as a 3D textured plane using camera intrinsics (K) and extrinsics (Tr)
-        void log(const std::string& name, const cv::Mat& image, const Eigen::Matrix3d& K, const Eigen::Matrix4d& Tr);
+    /// Stamp all subsequent log calls with the given frame index and sequence time.
+    void setFrame(int64_t frame_index, uint64_t timestamp_ns) const;
 
-        // Log a pointcloud (XYZ or XYZI)
-        void log(const std::string& name, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
+    /// Log a cv::Mat image (CV_8UC3 is interpreted as BGR, CV_8UC1 as grayscale).
+    void logImage(std::string_view entity, const cv::Mat& image) const;
 
-    private:
-        rerun::RecordingStream recording_stream_;
-    };
+    /// Log a pinhole camera model with full intrinsics K and image resolution.
+    void logCamera(std::string_view entity, const Eigen::Matrix3d& intrinsics, int width, int height) const;
 
+    /// Log the pose of an entity in the world frame.
+    void logPose(std::string_view entity, const Eigen::Isometry3d& world_from_entity) const;
 
+    /// Log a trajectory as a single 3d line strip.
+    void logTrajectory(std::string_view entity, const std::vector<Eigen::Vector3d>& positions) const;
 
-}
+    /// Log 3d points with one rgba color each. If colors is empty, points are white.
+    void logPoints(std::string_view entity,
+                   const std::vector<Eigen::Vector3d>& points,
+                   const std::vector<std::array<uint8_t, 4>>& colors_rgba = {},
+                   float radius = 0.15f) const;
+
+    /// Log a lidar point cloud, colored by intensity.
+    void logPointCloud(std::string_view entity, const pcl::PointCloud<pcl::PointXYZI>& cloud) const;
+
+private:
+    std::optional<rerun::RecordingStream> stream_;
+};
+
+} // namespace rr_vis
