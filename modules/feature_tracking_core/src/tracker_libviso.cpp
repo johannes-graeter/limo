@@ -101,7 +101,6 @@ void TrackerLibViso::updateTracklets() {
     tracklets_.sort([](const Tracklet& l, const Tracklet& r) {
         return l.empty() || r.empty() || l.front().p1_.index_ < r.front().p1_.index_;
     });
-    printf("Update tracklet\n");
     // now, go through vector of both current matches and tracklets and fuse them
     TrackletList::iterator currentTracklet = tracklets_.begin();
     for (Matcher::p_match& match : listMatch) {
