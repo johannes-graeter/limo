@@ -46,7 +46,7 @@ void printUsage(const char* name) {
 }
 
 std::optional<Options> parseOptions(int argc, char** argv) {
-    if (argc < 2) {
+    if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") {
         return std::nullopt;
     }
     Options options;
@@ -103,6 +103,16 @@ matches_msg_types::Tracklets convertTracklets(const feature_tracking::TrackletVe
     return out;
 }
 
+/// The 1/n-th of a rigid motion (slerp on the rotation, linear on the translation) — used to
+/// derive the per-frame velocity from the motion between two keyframes n frames apart.
+Eigen::Isometry3d fractionalMotion(const Eigen::Isometry3d& motion, double fraction) {
+    const Eigen::Quaterniond rotation(motion.rotation());
+    Eigen::Isometry3d out = Eigen::Isometry3d::Identity();
+    out.linear() = Eigen::Quaterniond::Identity().slerp(fraction, rotation).toRotationMatrix();
+    out.translation() = fraction * motion.translation();
+    return out;
+}
+
 /// Writes poses (pose of frame i in the frame of frame 0) in KITTI odometry format:
 /// one row per frame with the upper 3x4 of the pose matrix, row-major.
 void writeKittiPoses(const std::filesystem::path& file_path, const std::vector<Eigen::Isometry3d>& poses) {
@@ -156,8 +166,11 @@ int main(int argc, char** argv) {
 
     rr_vis::RerunVisualizer vis("limo_with_kitti", options->rerun_mode);
 
-    // Feature tracking on grayscale images, gamma-corrected for stability.
-    feature_tracking::TrackerLibViso tracker;
+    // Feature tracking on grayscale images, gamma-corrected for stability. Tracks must span
+    // several keyframes (0.25s apart at 10Hz), so keep 1s of history.
+    feature_tracking::TrackerLibViso::Parameters tracker_parameters;
+    tracker_parameters.maxTracklength = 10;
+    feature_tracking::TrackerLibViso tracker(tracker_parameters);
     image_preproc::GammaCorrector gamma_corrector;
 
     // The bundle adjustment treats the camera frame as vehicle frame (identity extrinsics).
@@ -165,28 +178,34 @@ int main(int argc, char** argv) {
         std::make_shared<kfba::Camera>(focal_length, principal_point, Eigen::Isometry3d::Identity());
 
     kfba::BundleAdjusterKeyframes bundle_adjuster;
-    bundle_adjuster.set_solver_time(0.2);
+    bundle_adjuster.set_solver_time(0.3);
     // Cap the landmark count per solve (voxel grid) but always keep the best depth-measured
     // landmarks — they anchor the scale.
     bundle_adjuster.landmark_selector_->addScheme(kfba::LandmarkSparsificationSchemeVoxel::createConst({}));
     {
+        // Guarantee plenty of depth-anchored landmarks on the newest keyframes: they carry the
+        // metric scale, and the solver's scale regularization weight (1000/num_depth_residuals)
+        // only becomes negligible when there are enough of them.
         kfba::LandmarkSelectionSchemeAddDepth::Parameters depth_params;
-        depth_params.params_per_keyframe.emplace_back(
-            0,
-            20,
-            [](const kfba::Landmark::ConstPtr& lm) { return lm->has_measured_depth; },
-            [](const kfba::Measurement& m, const Eigen::Vector3d&) { return static_cast<double>(m.d); });
+        for (int keyframe_index = 0; keyframe_index < 4; ++keyframe_index) {
+            depth_params.params_per_keyframe.emplace_back(
+                keyframe_index,
+                100,
+                [](const kfba::Landmark::ConstPtr& lm) { return lm->has_measured_depth; },
+                [](const kfba::Measurement& m, const Eigen::Vector3d&) { return static_cast<double>(m.d); });
+        }
         bundle_adjuster.landmark_selector_->addScheme(kfba::LandmarkSelectionSchemeAddDepth::createConst(depth_params));
     }
 
-    // Accept every frame with sufficient feature flow as keyframe; frames without flow (e.g. the
-    // car is standing) are rejected. The selector output is the union of the sparsification and
-    // selection schemes minus rejections, so an accept-everything sparsification scheme is needed.
+    // Keyframe cadence as in the original limo: at most one keyframe per 0.25s — larger baselines
+    // between keyframes condition the bundle adjustment much better than every-frame keyframes —
+    // and frames without feature flow (e.g. the car is standing) are rejected. The selector
+    // output is the union of the sparsification and selection schemes minus rejections.
     kfba::KeyframeSelector keyframe_selector;
+    const auto flow_scheme = std::make_shared<kfba::KeyframeRejectionSchemeFlow>(3.0);
+    keyframe_selector.addScheme(kfba::KeyframeRejectionSchemeBase::ConstPtr(flow_scheme));
     keyframe_selector.addScheme(
-        kfba::KeyframeRejectionSchemeBase::ConstPtr(std::make_shared<kfba::KeyframeRejectionSchemeFlow>(3.0)));
-    keyframe_selector.addScheme(
-        kfba::KeyframeSparsificationSchemeBase::ConstPtr(std::make_shared<kfba::KeyframeSparsificationSchemeTime>(0.)));
+        kfba::KeyframeSparsificationSchemeBase::ConstPtr(std::make_shared<kfba::KeyframeSparsificationSchemeTime>(0.25)));
 
     std::optional<mono_lidar::TrackletDepthEstimator> depth_estimator;
 
@@ -194,7 +213,11 @@ int main(int argc, char** argv) {
     std::vector<Eigen::Isometry3d> frame_poses;          // pose of frame i in frame 0 (camera)
     std::vector<uint64_t> keyframe_stamps_per_frame;     // the keyframe stamp if frame i is one
     std::vector<bool> is_keyframe;
-    Eigen::Isometry3d last_motion = Eigen::Isometry3d::Identity(); // frame-to-frame motion (world)
+    // Per-frame velocity for the constant-velocity model, derived from the motion between the
+    // last two optimized keyframes averaged over the frames in between.
+    Eigen::Isometry3d last_motion = Eigen::Isometry3d::Identity();
+    std::optional<Eigen::Isometry3d> last_keyframe_pose;
+    int frames_since_last_keyframe = 1;
     bool bootstrapped = false;
 
     size_t processed = 0;
@@ -274,16 +297,30 @@ int main(int argc, char** argv) {
                 // Uniform class weights for now; per-class weights return with the semantic input.
                 bundle_adjuster.updateLabels(tracklets, /*shrubbery_weight=*/1.0);
                 bundle_adjuster.deactivateKeyframes();
-                const std::string summary = bundle_adjuster.solve();
-                pose_current = bundle_adjuster.getKeyframe().getEigenPose().inverse();
-            } else {
+                try {
+                    const std::string summary = bundle_adjuster.solve();
+                    pose_current = bundle_adjuster.getKeyframe().getEigenPose().inverse();
+                } catch (const std::exception& e) {
+                    std::cerr << "Bundle adjustment failed at frame " << frame.index << ": " << e.what()
+                              << " — continuing with the motion prior." << std::endl;
+                }
+            } else if (!flow_scheme->isUsable(candidate, bundle_adjuster.getActiveKeyframePtrs())) {
                 // No parallax (car standing): keep the previous pose.
                 pose_current = frame_poses.back();
             }
+            // Otherwise (time-sparsified frame between keyframes): the constant-velocity prior
+            // already set in pose_current keeps the per-frame motion alive.
         }
 
-        if (!frame_poses.empty()) {
-            last_motion = frame_poses.back().inverse() * pose_current;
+        if (selected_as_keyframe) {
+            if (last_keyframe_pose.has_value()) {
+                const Eigen::Isometry3d keyframe_motion = last_keyframe_pose->inverse() * pose_current;
+                last_motion = fractionalMotion(keyframe_motion, 1. / frames_since_last_keyframe);
+            }
+            last_keyframe_pose = pose_current;
+            frames_since_last_keyframe = 1;
+        } else {
+            ++frames_since_last_keyframe;
         }
         frame_poses.push_back(pose_current);
         is_keyframe.push_back(selected_as_keyframe);
@@ -314,25 +351,37 @@ int main(int argc, char** argv) {
         ++processed;
     }
 
-    // 5) Final pose output: keyframes take their final optimized pose, frames in between are
-    // propagated with the relative motions estimated online.
-    std::vector<Eigen::Isometry3d> final_poses;
-    final_poses.reserve(frame_poses.size());
+    // 5) Final pose output: keyframes take their final optimized pose; frames between two
+    // keyframes are interpolated along the keyframe-to-keyframe motion; frames after the last
+    // keyframe are propagated with the online relative motions.
+    // Every frame whose stamp is a bundle-adjustment keyframe acts as anchor — that includes the
+    // fixed bootstrap keyframe, whose frame was not selected through the keyframe selector.
+    std::vector<Eigen::Isometry3d> final_poses = frame_poses;
+    std::vector<size_t> keyframe_indices;
     for (size_t i = 0; i < frame_poses.size(); ++i) {
-        std::optional<Eigen::Isometry3d> optimized;
-        if (is_keyframe[i]) {
-            const auto it = bundle_adjuster.keyframes_.find(keyframe_stamps_per_frame[i]);
-            if (it != bundle_adjuster.keyframes_.end()) {
-                optimized = it->second->getEigenPose().inverse();
-            }
+        const auto it = bundle_adjuster.keyframes_.find(keyframe_stamps_per_frame[i]);
+        if (it != bundle_adjuster.keyframes_.end()) {
+            final_poses[i] = it->second->getEigenPose().inverse();
+            keyframe_indices.push_back(i);
         }
-        if (optimized.has_value()) {
-            final_poses.push_back(*optimized);
-        } else if (final_poses.empty()) {
-            final_poses.push_back(frame_poses[i]);
-        } else {
-            const Eigen::Isometry3d relative_motion = frame_poses[i - 1].inverse() * frame_poses[i];
-            final_poses.push_back(final_poses.back() * relative_motion);
+    }
+    for (size_t k = 0; k + 1 < keyframe_indices.size(); ++k) {
+        const size_t a = keyframe_indices[k];
+        const size_t b = keyframe_indices[k + 1];
+        const Eigen::Isometry3d segment_motion = final_poses[a].inverse() * final_poses[b];
+        for (size_t i = a + 1; i < b; ++i) {
+            final_poses[i] =
+                final_poses[a] * fractionalMotion(segment_motion, static_cast<double>(i - a) / (b - a));
+        }
+    }
+    if (!keyframe_indices.empty()) {
+        for (size_t i = keyframe_indices.back() + 1; i < final_poses.size(); ++i) {
+            final_poses[i] = final_poses[i - 1] * (frame_poses[i - 1].inverse() * frame_poses[i]);
+        }
+        // Frames before the first keyframe barely move relative to it; anchor them there.
+        for (size_t i = 0; i < keyframe_indices.front(); ++i) {
+            final_poses[i] = final_poses[keyframe_indices.front()] *
+                             (frame_poses[keyframe_indices.front()].inverse() * frame_poses[i]);
         }
     }
 
