@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <vector>
 
@@ -7,6 +8,11 @@
 #include <Eigen/Geometry>
 
 namespace synthetic_kitti {
+
+/// Cityscapes label ids used by the generated scene.
+inline constexpr uint8_t kLabelRoad = 7;
+inline constexpr uint8_t kLabelBuilding = 11;
+inline constexpr uint8_t kLabelVegetation = 21;
 
 /// Configuration of the generated sequence.
 struct Options {
@@ -17,6 +23,7 @@ struct Options {
     double forward_motion_per_frame{0.8}; ///< camera motion along z per frame, meters
     double yaw_rate_per_frame{0.};        ///< rotation around y per frame, radians
     unsigned int seed{42};
+    bool with_semantic_images{false};     ///< also write semantic_2/ label images (cityscapes ids)
 };
 
 /// Generates a synthetic KITTI-odometry-format sequence (image_2/*.png, velodyne/*.bin,

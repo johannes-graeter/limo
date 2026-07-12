@@ -27,7 +27,9 @@ struct KittiFrame {
 /// optionally the ground-truth poses file).
 class KittiDataReader {
 public:
-    explicit KittiDataReader(const std::string& sequence_dir);
+    /// @param require_velodyne with false, a missing velodyne/ directory is tolerated and frames
+    ///        carry an empty cloud (camera-only operation)
+    explicit KittiDataReader(const std::string& sequence_dir, bool require_velodyne = true);
 
     struct FrameGenerator {
         struct promise_type {
@@ -111,7 +113,7 @@ public:
     static pcl::PointCloud<pcl::PointXYZI>::Ptr readPointcloud(const std::string& bin_path);
 
 private:
-    void scanFiles();
+    void scanFiles(bool require_velodyne);
     void readCalibration();
     void readTimes();
     void readGroundTruthPoses();

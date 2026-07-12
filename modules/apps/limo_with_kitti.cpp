@@ -36,13 +36,30 @@ struct Options {
     std::filesystem::path output_dir{"output"};
     std::string rerun_mode{"spawn"};
     int max_frames{-1};
+    std::optional<std::filesystem::path> semantic_dir;
+    double shrubbery_weight{0.5};
+    bool mono{false};
+    double camera_height{1.65};
+    bool semantic_gp{true};
 };
 
 void printUsage(const char* name) {
-    std::cerr << "Usage: " << name << " <KITTI sequence dir> [options]\n"
-              << "  --output <dir>       output directory for pose files (default: ./output)\n"
-              << "  --rerun <mode>       spawn | connect[:<url>] | save:<path> | off (default: spawn)\n"
-              << "  --max-frames <n>     stop after n frames (default: all)\n";
+    std::cerr
+        << "Usage: " << name << " <KITTI sequence dir> [options]\n"
+        << "  --output <dir>            output directory for pose files (default: ./output)\n"
+        << "  --rerun <mode>            spawn | connect[:<url>] | save:<path> | off (default: spawn)\n"
+        << "  --max-frames <n>          stop after n frames (default: all)\n"
+        << "  --semantic <dir>          directory with semantically segmented images (000000.png ...,\n"
+        << "                            8-bit cityscapes label ids). Enables label-based landmark\n"
+        << "                            weighting and the semantic ground plane. Optional.\n"
+        << "  --shrubbery-weight <w>    weight for vegetation landmarks with --semantic (default: 0.5)\n"
+        << "  --mono                    camera-only mode, no lidar (requires --semantic): the metric\n"
+        << "                            scale comes from the camera height over the semantically\n"
+        << "                            detected ground plane instead of lidar depth\n"
+        << "  --camera-height <m>       camera height over ground (plausibility gate for the ground\n"
+        << "                            plane; the scale source in --mono; default: 1.65)\n"
+        << "  --semantic-gp <on|off>    ground-plane residuals/regularization with --semantic\n"
+        << "                            (default: on; labels still weight landmarks when off)\n";
 }
 
 std::optional<Options> parseOptions(int argc, char** argv) {
@@ -68,22 +85,59 @@ std::optional<Options> parseOptions(int argc, char** argv) {
             const auto value = next();
             if (!value) return std::nullopt;
             options.max_frames = std::stoi(*value);
+        } else if (arg == "--semantic") {
+            const auto value = next();
+            if (!value) return std::nullopt;
+            options.semantic_dir = *value;
+        } else if (arg == "--shrubbery-weight") {
+            const auto value = next();
+            if (!value) return std::nullopt;
+            options.shrubbery_weight = std::stod(*value);
+        } else if (arg == "--mono") {
+            options.mono = true;
+        } else if (arg == "--camera-height") {
+            const auto value = next();
+            if (!value) return std::nullopt;
+            options.camera_height = std::stod(*value);
+        } else if (arg == "--semantic-gp") {
+            const auto value = next();
+            if (!value || (*value != "on" && *value != "off")) return std::nullopt;
+            options.semantic_gp = (*value == "on");
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             return std::nullopt;
         }
     }
+    if (options.mono && !options.semantic_dir.has_value()) {
+        std::cerr << "--mono needs --semantic: without lidar, the scale can only come from the "
+                     "camera height over the semantically detected ground plane.\n";
+        return std::nullopt;
+    }
     return options;
+}
+
+/// Loads the semantically segmented image belonging to a frame: <dir>/<%06d frame index>.png,
+/// 8-bit grayscale with cityscapes label ids.
+cv::Mat loadSemanticImage(const std::filesystem::path& semantic_dir, size_t frame_index) {
+    std::ostringstream name;
+    name << std::setw(6) << std::setfill('0') << frame_index << ".png";
+    const auto path = semantic_dir / name.str();
+    cv::Mat labels = cv::imread(path.string(), cv::IMREAD_GRAYSCALE);
+    if (labels.empty()) {
+        throw std::runtime_error("Cannot read semantic image " + path.string());
+    }
+    return labels;
 }
 
 /// Converts viso tracklets (deque of matches, newest first) to the pipeline's tracklet type.
 /// stamps must also be ordered newest first; feature_points[i] corresponds to stamps[i].
 ///
-/// The label of every tracklet is left at its neutral default. Once semantically segmented
-/// images are available, look up each feature's label here — the rest of the pipeline
-/// (depth estimation, updateLabels class weights) already forwards them.
+/// With a semantic image, every track is labeled with the cityscapes label id under its newest
+/// observation; the bundle adjustment maps labels to landmark weights (vegetation down, dynamic
+/// objects and sky to outliers). Without one, labels keep their neutral default.
 matches_msg_types::Tracklets convertTracklets(const feature_tracking::TrackletVector& viso_tracklets,
-                                              const std::deque<matches_msg_types::TimestampNSec>& stamps) {
+                                              const std::deque<matches_msg_types::TimestampNSec>& stamps,
+                                              const std::optional<cv::Mat>& semantic_image) {
     matches_msg_types::Tracklets out;
     out.stamps.assign(stamps.begin(), stamps.end());
     out.tracks.reserve(viso_tracklets.size());
@@ -98,9 +152,80 @@ matches_msg_types::Tracklets convertTracklets(const feature_tracking::TrackletVe
             const auto& match = viso_tracklet[i];
             track.feature_points.emplace_back(match.p1_.u_, match.p1_.v_);
         }
+
+        if (semantic_image.has_value() && !track.feature_points.empty()) {
+            const auto& newest = track.feature_points.front();
+            const int u = std::clamp(static_cast<int>(newest.u), 0, semantic_image->cols - 1);
+            const int v = std::clamp(static_cast<int>(newest.v), 0, semantic_image->rows - 1);
+            track.label = static_cast<int>(semantic_image->at<uchar>(v, u));
+        }
+
         out.tracks.push_back(std::move(track));
     }
     return out;
+}
+
+/// Converts the estimated ground plane (lidar coordinates) to the bundle adjustment's local
+/// ground plane of a keyframe. Convention there: residual = normal . point + distance for points
+/// in the keyframe (camera) frame, with the camera above the plane at positive distance.
+///
+/// Implausible fits (height far from the camera height, or a normal that is not roughly up) are
+/// rejected — a bad plane as hard prior distorts the trajectory more than no plane at all.
+kfba::Plane toBaGroundPlane(const mono_lidar::GroundPlane::Ptr& ground_plane,
+                            const Eigen::Affine3d& transform_lidar_to_camera,
+                            double expected_camera_height) {
+    if (ground_plane == nullptr || !ground_plane->isSegmented()) {
+        return kfba::Plane(); // negative distance -> unused in the optimization
+    }
+    const Eigen::Vector4f& coefficients = ground_plane->modelCoeffs();
+    const Eigen::Vector3d normal_lidar =
+        Eigen::Vector3d(coefficients[0], coefficients[1], coefficients[2]).normalized();
+    // A point on the plane (n . p + d = 0) and the normal, both mapped into the camera frame.
+    const Eigen::Vector3d point_camera =
+        transform_lidar_to_camera * (-normal_lidar * static_cast<double>(coefficients[3]));
+    const Eigen::Vector3d normal_camera = transform_lidar_to_camera.rotation() * normal_lidar;
+
+    Eigen::Hyperplane<double, 3> plane(normal_camera, point_camera);
+    if (plane.offset() < 0.) {
+        plane.coeffs() = -plane.coeffs(); // camera above the plane means positive distance
+    }
+
+    const bool height_plausible = plane.offset() > 0.5 * expected_camera_height &&
+                                  plane.offset() < 1.5 * expected_camera_height;
+    const bool normal_up = plane.normal().dot(-Eigen::Vector3d::UnitY()) > std::cos(20. * M_PI / 180.);
+    if (!height_plausible || !normal_up) {
+        return kfba::Plane();
+    }
+
+    kfba::Plane out;
+    out.direction = {plane.normal().x(), plane.normal().y(), plane.normal().z()};
+    out.distance = plane.offset();
+    return out;
+}
+
+/// Rough cityscapes colors for visualizing label images.
+cv::Mat colorizeSemanticImage(const cv::Mat& labels) {
+    static const std::map<int, cv::Vec3b> kPalette{
+        {7, {128, 64, 128}},  // road
+        {8, {232, 35, 244}},  // sidewalk
+        {11, {70, 70, 70}},   // building
+        {13, {153, 153, 190}},// fence
+        {17, {153, 153, 153}},// pole
+        {21, {35, 142, 107}}, // vegetation
+        {22, {152, 251, 152}},// terrain
+        {23, {180, 130, 70}}, // sky
+        {26, {142, 0, 0}},    // car
+    };
+    cv::Mat color(labels.size(), CV_8UC3, cv::Scalar(60, 60, 60));
+    for (int y = 0; y < labels.rows; ++y) {
+        for (int x = 0; x < labels.cols; ++x) {
+            const auto it = kPalette.find(labels.at<uchar>(y, x));
+            if (it != kPalette.end()) {
+                color.at<cv::Vec3b>(y, x) = it->second;
+            }
+        }
+    }
+    return color;
 }
 
 /// The 1/n-th of a rigid motion (slerp on the rotation, linear on the translation) — used to
@@ -159,7 +284,7 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    KittiDataReader reader(options->sequence_dir.string());
+    KittiDataReader reader(options->sequence_dir.string(), /*require_velodyne=*/!options->mono);
     const Eigen::Matrix3d K = reader.intrinsics();
     const double focal_length = K(0, 0);
     const Eigen::Vector2d principal_point(K(0, 2), K(1, 2));
@@ -179,6 +304,11 @@ int main(int argc, char** argv) {
 
     kfba::BundleAdjusterKeyframes bundle_adjuster;
     bundle_adjuster.set_solver_time(0.3);
+    // Note on the depth robust loss (outlier_rejection_options_.depth_thres, default 0.16m):
+    // loosening it fixes a small scale underestimation during acceleration (the constant-velocity
+    // prior is short and the tight Cauchy loss saturates the depth residuals that would stretch
+    // the solution) but destabilizes the plane/pitch estimate late in long sequences. The default
+    // measured best overall on KITTI 04.
     // Cap the landmark count per solve (voxel grid) but always keep the best depth-measured
     // landmarks — they anchor the scale.
     bundle_adjuster.landmark_selector_->addScheme(kfba::LandmarkSparsificationSchemeVoxel::createConst({}));
@@ -193,6 +323,13 @@ int main(int argc, char** argv) {
                 100,
                 [](const kfba::Landmark::ConstPtr& lm) { return lm->has_measured_depth; },
                 [](const kfba::Measurement& m, const Eigen::Vector3d&) { return static_cast<double>(m.d); });
+            // With semantic labels, also guarantee ground-plane landmarks — they activate the
+            // ground-plane residuals and regularization (and carry the scale in --mono).
+            depth_params.params_per_keyframe.emplace_back(
+                keyframe_index,
+                50,
+                [](const kfba::Landmark::ConstPtr& lm) { return lm->is_ground_plane; },
+                [](const kfba::Measurement&, const Eigen::Vector3d& local_lm) { return local_lm.norm(); });
         }
         bundle_adjuster.landmark_selector_->addScheme(kfba::LandmarkSelectionSchemeAddDepth::createConst(depth_params));
     }
@@ -227,7 +364,7 @@ int main(int argc, char** argv) {
             break;
         }
 
-        if (!depth_estimator.has_value()) {
+        if (!depth_estimator.has_value() && !options->mono) {
             mono_lidar::DepthEstimatorParameters depth_parameters;
             auto camera_ml = std::make_shared<mono_lidar::CameraPinhole>(
                 frame.image.cols, frame.image.rows, focal_length, principal_point.x(), principal_point.y());
@@ -249,10 +386,31 @@ int main(int argc, char** argv) {
         if (stamps.size() > kMaxTrackletHistory) {
             stamps.pop_back();
         }
-        auto tracklets = convertTracklets(viso_tracklets, stamps);
 
-        // 2) Lidar depth for the tracked features.
-        tracklets = depth_estimator->process(frame.cloud, tracklets);
+        std::optional<cv::Mat> semantic_image;
+        if (options->semantic_dir.has_value()) {
+            semantic_image = loadSemanticImage(*options->semantic_dir, frame.index);
+        }
+        auto tracklets = convertTracklets(viso_tracklets, stamps, semantic_image);
+
+        // 2) Lidar depth for the tracked features. With a semantic image, the ground plane comes
+        // from the labeled ground pixels instead of RANSAC. In --mono there is no lidar: features
+        // keep d = -1 and the ground plane is the camera-height prior (refined per keyframe by
+        // the optimization; its distance carries the scale).
+        kfba::Plane keyframe_ground_plane;
+        if (options->mono) {
+            keyframe_ground_plane.direction = {0., -1., 0.};
+            keyframe_ground_plane.distance = options->camera_height;
+        } else {
+            // The road plane for the depth fallback comes from RANSAC — it constrains the plane
+            // axis and proved more robust on real data than the unconstrained fit through the
+            // labeled ground pixels (SemanticPlane remains available in mono_lidar_depth).
+            tracklets = depth_estimator->process(frame.cloud, tracklets);
+            if (semantic_image.has_value() && options->semantic_gp) {
+                keyframe_ground_plane = toBaGroundPlane(
+                    depth_estimator->lastGroundPlane(), frame.transform_velodyne_to_camera, options->camera_height);
+            }
+        }
 
         // 3) Pose prior by constant velocity, then keyframe selection + bundle adjustment.
         // Identical consecutive pose initializations sit on a singular point of the bundle
@@ -280,22 +438,25 @@ int main(int argc, char** argv) {
             // world in the first frame — plus the current frame, and let the solver estimate the
             // first motion from the depth-anchored landmarks.
             bundle_adjuster.push(kfba::Keyframe(stamps.at(1), tracklets, camera_ba, Eigen::Isometry3d::Identity(),
-                                                kfba::Keyframe::FixationStatus::Pose));
-            bundle_adjuster.push(kfba::Keyframe(frame.timestamp_ns, tracklets, camera_ba, pose_prior.inverse()));
-            bundle_adjuster.updateLabels(tracklets, /*shrubbery_weight=*/1.0);
+                                                kfba::Keyframe::FixationStatus::Pose, keyframe_ground_plane));
+            bundle_adjuster.push(kfba::Keyframe(frame.timestamp_ns, tracklets, camera_ba, pose_prior.inverse(),
+                                                kfba::Keyframe::FixationStatus::None, keyframe_ground_plane));
+            bundle_adjuster.updateLabels(tracklets, options->shrubbery_weight);
             // solve() requires three keyframes; the first solve happens with the next one.
             selected_as_keyframe = true;
             bootstrapped = true;
         } else {
             auto candidate = std::make_shared<kfba::Keyframe>(
-                frame.timestamp_ns, tracklets, camera_ba, pose_prior.inverse());
+                frame.timestamp_ns, tracklets, camera_ba, pose_prior.inverse(),
+                kfba::Keyframe::FixationStatus::None, keyframe_ground_plane);
             const auto selected = keyframe_selector.select({candidate}, bundle_adjuster.getActiveKeyframePtrs());
             selected_as_keyframe = !selected.empty();
 
             if (selected_as_keyframe) {
                 bundle_adjuster.push(*candidate);
-                // Uniform class weights for now; per-class weights return with the semantic input.
-                bundle_adjuster.updateLabels(tracklets, /*shrubbery_weight=*/1.0);
+                // With semantic labels, vegetation landmarks are downweighted and dynamic
+                // objects/sky become outliers; without them every class weighs the same.
+                bundle_adjuster.updateLabels(tracklets, options->shrubbery_weight);
                 bundle_adjuster.deactivateKeyframes();
                 try {
                     const std::string summary = bundle_adjuster.solve();
@@ -331,6 +492,9 @@ int main(int argc, char** argv) {
         vis.logPose("world/camera", pose_current);
         vis.logCamera("world/camera/image", K, frame.image.cols, frame.image.rows);
         vis.logImage("world/camera/image", frame.image);
+        if (semantic_image.has_value()) {
+            vis.logImage("world/camera/semantic", colorizeSemanticImage(*semantic_image));
+        }
         vis.logPointCloud("world/camera/lidar", *frame.cloud, frame.transform_velodyne_to_camera);
         if (selected_as_keyframe) {
             logLandmarks(vis, bundle_adjuster);

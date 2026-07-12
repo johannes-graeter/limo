@@ -14,9 +14,11 @@ struct ScenePoint {
     Eigen::Vector3d position; ///< world frame (= camera frame of the first image)
     uint8_t gray;             ///< dot intensity for rendering
     bool is_dot;              ///< dots are rendered into the images; all points go into the cloud
+    uint8_t label;            ///< cityscapes label id of the surface the point belongs to
 };
 
-/// Corridor: ground plane at y = 1.5, walls at x = +-6, extending along z.
+/// Corridor: ground plane at y = 1.5 (road), a vegetation wall left and a building wall right at
+/// x = +-6, extending along z.
 std::vector<ScenePoint> makeScene(const Options& options) {
     std::mt19937 rng(options.seed);
     std::uniform_int_distribution<int> intensity(0, 255);
@@ -25,25 +27,27 @@ std::vector<ScenePoint> makeScene(const Options& options) {
     const double z_max = options.frame_count * options.forward_motion_per_frame + 40.;
     std::vector<ScenePoint> scene;
 
-    const auto addSurface = [&](auto&& to_position, double u_min, double u_max, double dot_step, double lidar_step) {
-        for (double z = 1.; z < z_max; z += dot_step) {
-            for (double u = u_min; u <= u_max; u += dot_step) {
-                scene.push_back({to_position(u + jitter(rng), z + jitter(rng)),
-                                 static_cast<uint8_t>(intensity(rng)),
-                                 true});
+    const auto addSurface =
+        [&](auto&& to_position, double u_min, double u_max, double dot_step, double lidar_step, uint8_t label) {
+            for (double z = 1.; z < z_max; z += dot_step) {
+                for (double u = u_min; u <= u_max; u += dot_step) {
+                    scene.push_back({to_position(u + jitter(rng), z + jitter(rng)),
+                                     static_cast<uint8_t>(intensity(rng)),
+                                     true,
+                                     label});
+                }
             }
-        }
-        for (double z = 1.; z < z_max; z += lidar_step) {
-            for (double u = u_min; u <= u_max; u += lidar_step) {
-                scene.push_back({to_position(u, z), 128, false});
+            for (double z = 1.; z < z_max; z += lidar_step) {
+                for (double u = u_min; u <= u_max; u += lidar_step) {
+                    scene.push_back({to_position(u, z), 128, false, label});
+                }
             }
-        }
-    };
+        };
 
     // Ground plane (u = x), left and right wall (u = y).
-    addSurface([](double u, double z) { return Eigen::Vector3d(u, 1.5, z); }, -6., 6., 0.8, 0.35);
-    addSurface([](double u, double z) { return Eigen::Vector3d(-6., u, z); }, -2.5, 1.5, 0.7, 0.35);
-    addSurface([](double u, double z) { return Eigen::Vector3d(6., u, z); }, -2.5, 1.5, 0.7, 0.35);
+    addSurface([](double u, double z) { return Eigen::Vector3d(u, 1.5, z); }, -6., 6., 0.8, 0.35, kLabelRoad);
+    addSurface([](double u, double z) { return Eigen::Vector3d(-6., u, z); }, -2.5, 1.5, 0.7, 0.35, kLabelVegetation);
+    addSurface([](double u, double z) { return Eigen::Vector3d(6., u, z); }, -2.5, 1.5, 0.7, 0.35, kLabelBuilding);
 
     return scene;
 }
@@ -82,6 +86,9 @@ void writeCalib(const std::filesystem::path& file_path, const Options& options, 
 std::vector<Eigen::Isometry3d> generateSequence(const std::filesystem::path& sequence_dir, const Options& options) {
     std::filesystem::create_directories(sequence_dir / "image_2");
     std::filesystem::create_directories(sequence_dir / "velodyne");
+    if (options.with_semantic_images) {
+        std::filesystem::create_directories(sequence_dir / "semantic_2");
+    }
 
     const auto scene = makeScene(options);
     const Eigen::Affine3d cam_to_velo = makeCameraToVelodyne();
@@ -110,12 +117,12 @@ std::vector<Eigen::Isometry3d> generateSequence(const std::filesystem::path& seq
 
         const Eigen::Isometry3d world_to_camera = pose.inverse();
 
-        // Render the dots visible from the current camera pose.
+        // Render the dots visible from the current camera pose; the semantic image gets the
+        // surface label of every scene point with slightly larger stamps so features detected on
+        // dot edges are labeled too.
         cv::Mat image(options.image_height, options.image_width, CV_8UC3, cv::Scalar(90, 90, 90));
+        cv::Mat semantic(options.image_height, options.image_width, CV_8UC1, cv::Scalar(0));
         for (const auto& point : scene) {
-            if (!point.is_dot) {
-                continue;
-            }
             const Eigen::Vector3d p_cam = world_to_camera * point.position;
             if (p_cam.z() < 0.5) {
                 continue;
@@ -125,18 +132,21 @@ std::vector<Eigen::Isometry3d> generateSequence(const std::filesystem::path& seq
             if (u < 2. || u >= options.image_width - 2. || v < 2. || v >= options.image_height - 2.) {
                 continue;
             }
+            const cv::Point pixel(static_cast<int>(std::lround(u)), static_cast<int>(std::lround(v)));
             const int radius = std::max(1, static_cast<int>(std::lround(6. / p_cam.z() * 4.)));
-            const auto gray = point.gray;
-            cv::circle(image,
-                       cv::Point(static_cast<int>(std::lround(u)), static_cast<int>(std::lround(v))),
-                       radius,
-                       cv::Scalar(gray, gray, gray),
-                       cv::FILLED);
+            if (point.is_dot) {
+                const auto gray = point.gray;
+                cv::circle(image, pixel, radius, cv::Scalar(gray, gray, gray), cv::FILLED);
+            }
+            cv::circle(semantic, pixel, radius + 3, cv::Scalar(point.label), cv::FILLED);
         }
 
         char name[16];
         std::snprintf(name, sizeof(name), "%06d", frame);
         cv::imwrite((sequence_dir / "image_2" / (std::string(name) + ".png")).string(), image);
+        if (options.with_semantic_images) {
+            cv::imwrite((sequence_dir / "semantic_2" / (std::string(name) + ".png")).string(), semantic);
+        }
 
         // Velodyne cloud: all scene points in front of the camera, in the velodyne frame.
         std::ofstream cloud_file(sequence_dir / "velodyne" / (std::string(name) + ".bin"), std::ios::binary);

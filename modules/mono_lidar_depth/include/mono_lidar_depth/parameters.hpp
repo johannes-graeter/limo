@@ -77,6 +77,10 @@ struct DepthEstimatorParameters {
     RoadPlaneFitMode road_plane_fit_mode{RoadPlaneFitMode::m_estimator};
     double road_triangle_min_z_x_relation{0.}; ///< min z/x extent ratio of the road patch
 
+    // Ground plane from a semantically segmented image (used instead of RANSAC when one is
+    // passed to TrackletDepthEstimator::process).
+    double semantic_plane_inlier_threshold{0.2};
+
     bool collect_statistics{true};
 };
 

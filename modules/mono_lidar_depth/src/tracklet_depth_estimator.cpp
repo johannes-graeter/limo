@@ -27,7 +27,7 @@ GroundPlane::Ptr TrackletDepthEstimator::makeGroundPlane(const std::optional<cv:
     camera.transform_cam_lidar = transform_lidar_to_camera_;
 
     return std::make_shared<SemanticPlane>(
-        *semantic_image, camera, kDefaultGroundplaneLabels, parameters_.ransac_plane_refinement_threshold);
+        *semantic_image, camera, kDefaultGroundplaneLabels, parameters_.semantic_plane_inlier_threshold);
 }
 
 matches_msg_types::Tracklets TrackletDepthEstimator::process(const Cloud::ConstPtr& cloud,

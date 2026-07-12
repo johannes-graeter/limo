@@ -60,6 +60,12 @@ public:
         return depth_estimator_;
     }
 
+    /// Ground plane of the last processed frame (in lidar coordinates), null before the first
+    /// frame or if the last segmentation failed.
+    GroundPlane::Ptr lastGroundPlane() const {
+        return ground_plane_last_;
+    }
+
 private:
     using TrackletId = uint64_t;
 

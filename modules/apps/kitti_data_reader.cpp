@@ -21,23 +21,24 @@ std::array<double, 12> parseCalibLine(const std::string& values) {
 
 } // namespace
 
-KittiDataReader::KittiDataReader(const std::string& sequence_dir) : sequence_dir_(sequence_dir) {
+KittiDataReader::KittiDataReader(const std::string& sequence_dir, bool require_velodyne)
+        : sequence_dir_(sequence_dir) {
     if (!std::filesystem::is_directory(sequence_dir_)) {
         throw std::runtime_error("KittiDataReader: not a directory: " + sequence_dir_.string());
     }
-    scanFiles();
+    scanFiles(require_velodyne);
     readCalibration();
     readTimes();
     readGroundTruthPoses();
 }
 
-void KittiDataReader::scanFiles() {
+void KittiDataReader::scanFiles(bool require_velodyne) {
     const auto image_dir = sequence_dir_ / "image_2";
     const auto cloud_dir = sequence_dir_ / "velodyne";
     if (!std::filesystem::is_directory(image_dir)) {
         throw std::runtime_error("KittiDataReader: missing " + image_dir.string());
     }
-    if (!std::filesystem::is_directory(cloud_dir)) {
+    if (!std::filesystem::is_directory(cloud_dir) && require_velodyne) {
         throw std::runtime_error("KittiDataReader: missing " + cloud_dir.string());
     }
 
@@ -46,9 +47,11 @@ void KittiDataReader::scanFiles() {
             image_files_.push_back(entry.path().string());
         }
     }
-    for (const auto& entry : std::filesystem::directory_iterator(cloud_dir)) {
-        if (entry.path().extension() == ".bin") {
-            cloud_files_.push_back(entry.path().string());
+    if (std::filesystem::is_directory(cloud_dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(cloud_dir)) {
+            if (entry.path().extension() == ".bin") {
+                cloud_files_.push_back(entry.path().string());
+            }
         }
     }
     std::sort(image_files_.begin(), image_files_.end());
@@ -57,9 +60,12 @@ void KittiDataReader::scanFiles() {
     if (image_files_.empty()) {
         throw std::runtime_error("KittiDataReader: no images in " + image_dir.string());
     }
-    if (image_files_.size() != cloud_files_.size()) {
+    if (!cloud_files_.empty() && image_files_.size() != cloud_files_.size()) {
         throw std::runtime_error("KittiDataReader: image/velodyne count mismatch: " +
                                  std::to_string(image_files_.size()) + " vs " + std::to_string(cloud_files_.size()));
+    }
+    if (cloud_files_.empty() && require_velodyne) {
+        throw std::runtime_error("KittiDataReader: no velodyne scans in " + cloud_dir.string());
     }
 }
 
@@ -174,7 +180,9 @@ KittiDataReader::FrameGenerator KittiDataReader::frames() {
         co_yield KittiFrame{K_,
                             transform_velodyne_to_camera_,
                             readImage(image_files_[i]),
-                            readPointcloud(cloud_files_[i]),
+                            i < cloud_files_.size() ? readPointcloud(cloud_files_[i])
+                                                    : pcl::PointCloud<pcl::PointXYZI>::Ptr(
+                                                          new pcl::PointCloud<pcl::PointXYZI>()),
                             timestamps_ns_[i],
                             i};
     }

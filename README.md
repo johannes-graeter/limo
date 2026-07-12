@@ -49,10 +49,69 @@ docker run --rm --net=host -v /path/to/sequences/04:/data:ro -v $PWD/out:/out \
 
 ```
 limo_with_kitti <KITTI sequence dir> [options]
-  --output <dir>       output directory for pose files (default: ./output)
-  --rerun <mode>       spawn | connect[:<url>] | save:<path> | off (default: spawn)
-  --max-frames <n>     stop after n frames (default: all)
+  --output <dir>            output directory for pose files (default: ./output)
+  --rerun <mode>            spawn | connect[:<url>] | save:<path> | off (default: spawn)
+  --max-frames <n>          stop after n frames (default: all)
+  --semantic <dir>          directory with semantically segmented images (optional)
+  --shrubbery-weight <w>    weight for vegetation landmarks with --semantic (default: 0.5)
+  --mono                    camera-only mode, no lidar (requires --semantic)
+  --camera-height <m>       camera height over ground for --mono (default: 1.65)
 ```
+
+## Semantic segmentation (optional)
+
+The pipeline runs fine on plain images. With semantically segmented images it additionally
+
+- **downweights vegetation** landmarks (`--shrubbery-weight`) and treats sky and dynamic objects
+  (vehicles, pedestrians, ...) as outliers,
+- estimates the **ground plane from the labeled road pixels** instead of RANSAC and activates the
+  ground-plane residuals and regularization in the bundle adjustment (landmarks on the road are
+  pulled onto a per-keyframe plane, which stabilizes pitch and height),
+- enables **`--mono`**: camera-only odometry without any lidar, where the metric scale comes from
+  the camera height over the detected ground plane (`--camera-height`).
+
+Label images are 8-bit PNGs with [cityscapes label ids](https://github.com/mcordts/cityscapesScripts)
+(road=7, vegetation=21, sky=23, car=26, ...), one per frame (`000000.png`, ...).
+
+Generate them with the bundled segmentation service (SegFormer-B0 fine-tuned on Cityscapes,
+CPU inference, model baked into the image):
+
+```bash
+docker build -t limo-semantic semantic/
+docker run --rm \
+    -v /path/to/sequences/04/image_2:/in:ro \
+    -v /path/to/sequences/04/semantic_2:/out \
+    limo-semantic /in /out
+```
+
+Then:
+
+```bash
+# lidar + semantics
+docker run --rm -v /path/to/sequences/04:/data:ro -v $PWD/out:/out limo \
+    /data --output /out --rerun save:/out/limo.rrd --semantic /data/semantic_2
+
+# camera only (no velodyne data needed at all)
+docker run --rm -v /path/to/sequences/04:/data:ro -v $PWD/out:/out limo \
+    /data --output /out --rerun off --mono --semantic /data/semantic_2
+```
+
+Measured on KITTI odometry sequence 04 (394 m; final position error, single runs — the solver has
+a wall-clock budget, so expect ±1-2 % variance between runs):
+
+| Configuration | Final error |
+|---|---|
+| lidar, plain images | 1-2 % |
+| lidar + semantics, `--semantic-gp off` (label weights/outliers only) | ~3 % |
+| lidar + semantics (full ground-plane machinery) | ~7 % |
+| `--mono` + semantics (experimental) | scale under-estimated |
+
+The label weighting is roughly at parity with the plain pipeline; the per-keyframe ground-plane
+estimation currently costs accuracy on this sequence because the plane distances are free
+parameters chained only by a neighbor regularization and drift in pitch on long runs — tuning
+that (and the saturating robust losses that keep `--mono` near the scale of its motion prior) is
+the next research step; the original LIMO gains also relied on a segmentation network fine-tuned
+for the KITTI domain rather than an off-the-shelf Cityscapes model.
 
 ## Evaluation
 
@@ -103,15 +162,6 @@ Modules (all plain CMake targets, no ROS):
 | `modules/robust_optimization` | robust Ceres solving with outlier trimming |
 | `modules/keyframe_bundle_adjustment` | keyframe/landmark selection + bundle adjustment |
 | `modules/apps` | KITTI reader, rerun visualization, the `limo_with_kitti` main |
-
-### Semantic segmentation
-
-The original LIMO weighted landmarks by semantic class (vegetation, ground, dynamic objects).
-This port keeps all of that machinery wired — `Tracklet::label`, per-class weights in the bundle
-adjustment, and a `SemanticPlane` ground-plane implementation — but currently runs with **uniform
-weights and no label input**. When segmented images become available, plug them in at the
-labeling seam in `limo_with_kitti.cpp` (`convertTracklets`) and pass them to
-`TrackletDepthEstimator::process`.
 
 ## Building natively (without Docker)
 
